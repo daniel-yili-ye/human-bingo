@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import type { CellState } from "./useLocalBingoStorage";
+
+type CellWithChecked = {
+  checked: boolean;
+};
 
 export type BingoLine = {
   type: "row" | "column" | "diagonal";
@@ -28,7 +31,7 @@ const WINNING_LINES: BingoLine[] = [
   { type: "diagonal", index: 1, cells: [4, 8, 12, 16, 20] },
 ];
 
-export function useBingoDetection(cells: CellState[]) {
+export function useBingoDetection(cells: CellWithChecked[]) {
   const completedLines = useMemo(() => {
     return WINNING_LINES.filter((line) =>
       line.cells.every((cellIndex) => cells[cellIndex]?.checked)
