@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import confetti from "canvas-confetti";
 import type { BingoCardData } from "@/data/bingoCards";
 import { cn } from "@/lib/utils";
+import { RotateCcw } from "lucide-react";
 
 type BingoCardProps = {
   cardData: BingoCardData;
@@ -114,7 +115,7 @@ export function BingoCard({ cardData }: BingoCardProps) {
         hasBingo && "ring-2 ring-amber-500/50 shadow-xl shadow-amber-500/10"
       )}
     >
-      <CardHeader className="pb-2 sm:pb-4">
+      <CardHeader>
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-lg sm:text-xl md:text-2xl font-bold bg-linear-to-r from-primary to-primary/70 bg-clip-text text-transparent">
             {cardData.name}
@@ -123,8 +124,9 @@ export function BingoCard({ cardData }: BingoCardProps) {
             variant="outline"
             size="sm"
             onClick={handleReset}
-            className="text-xs sm:text-sm hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+            className="text-xs sm:text-sm bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700 hover:border-red-300"
           >
+            <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
             Reset
           </Button>
         </div>
@@ -135,7 +137,7 @@ export function BingoCard({ cardData }: BingoCardProps) {
           </p>
         )}
       </CardHeader>
-      <CardContent className="p-2 sm:p-4 md:p-6">
+      <CardContent>
         <div className="grid grid-cols-5 grid-rows-5 gap-1 sm:gap-1.5 md:gap-2 auto-rows-fr">
           {cardData.prompts.map((prompt, index) => (
             <BingoCell

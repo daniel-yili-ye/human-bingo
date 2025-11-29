@@ -7,7 +7,7 @@ export type BingoCardData = {
 export const bingoCards: Record<string, BingoCardData> = {
   card1: {
     id: "card1",
-    name: "1. Getting to Know You",
+    name: "1. Intro",
     prompts: [
       "Has traveled to 20+ countries",
       "Plays a musical instrument",
@@ -38,7 +38,7 @@ export const bingoCards: Record<string, BingoCardData> = {
   },
   card2: {
     id: "card2",
-    name: "2. Work & Life",
+    name: "2. Work",
     prompts: [
       "Has changed careers",
       "Works at a startup",

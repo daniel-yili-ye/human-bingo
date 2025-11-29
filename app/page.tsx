@@ -2,16 +2,16 @@
 
 import { useState } from "react";
 import { BingoCard } from "@/components/BingoCard";
-import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { bingoCards, cardIds } from "@/data/bingoCards";
-import { cn } from "@/lib/utils";
+import { Info } from "lucide-react";
 
 export default function Home() {
   const [activeCardId, setActiveCardId] = useState(cardIds[0]);
   const activeCard = bingoCards[activeCardId];
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20">
+    <main className="min-h-screen bg-linear-to-br from-background via-background to-accent/20">
       {/* Decorative background elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
@@ -29,46 +29,50 @@ export default function Home() {
               Bingo
             </span>
           </h1>
-          <p className="mt-2 sm:mt-3 text-sm sm:text-base text-muted-foreground max-w-md mx-auto">
-            Find people who match each square. Type their name and click to mark
-            complete!
-          </p>
         </header>
 
+        <div className="flex justify-center mb-6 sm:mb-8">
+          <div className="max-w-md w-full">
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 sm:p-4 flex gap-3 items-start shadow-sm">
+              <Info className="w-5 h-5 mt-0.5 text-blue-600 shrink-0" />
+              <div className="flex-1 text-left">
+                <div className="font-semibold text-sm sm:text-base text-blue-800">
+                  How to play
+                </div>
+                <div className="mt-1 text-blue-700 text-xs sm:text-sm">
+                  Find people who match a square and type their name to complete
+                  a cell. Complete a row, column, or diagonal to win! Each
+                  person's name can only appear once per Bingo card. Once you
+                  have a Bingo, please shout out "BINGO" to let everyone know!
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
         {/* Card Selector */}
-        <nav className="flex flex-col items-center gap-2 sm:gap-3 mb-6 sm:mb-8">
-          {cardIds.map((cardId) => {
-            const card = bingoCards[cardId];
-            const isActive = cardId === activeCardId;
-            return (
-              <Button
-                key={cardId}
-                variant={isActive ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveCardId(cardId)}
-                className={cn(
-                  "transition-all duration-300",
-                  isActive
-                    ? "shadow-lg shadow-primary/25 scale-105"
-                    : "hover:scale-105"
-                )}
-              >
-                {card.name}
-              </Button>
-            );
-          })}
-        </nav>
+        <Tabs
+          value={activeCardId}
+          onValueChange={setActiveCardId}
+          className="flex flex-col items-center mb-6 sm:mb-8"
+        >
+          <TabsList className="h-auto gap-1 p-1">
+            {cardIds.map((cardId) => {
+              const card = bingoCards[cardId];
+              return (
+                <TabsTrigger
+                  key={cardId}
+                  value={cardId}
+                  className="w-full px-6 py-2 text-sm data-[state=active]:shadow-md"
+                >
+                  {card.name}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </Tabs>
 
         {/* Bingo Card */}
         <BingoCard cardData={activeCard} />
-
-        {/* Footer */}
-        <footer className="mt-8 sm:mt-12 text-center">
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Complete a row, column, or diagonal to win! Your progress is saved
-            automatically.
-          </p>
-        </footer>
       </div>
     </main>
   );

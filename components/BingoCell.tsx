@@ -30,7 +30,7 @@ export function BingoCell({
   return (
     <div
       className={cn(
-        "relative h-full flex flex-col items-center justify-center p-1.5 sm:p-2 md:p-3",
+        "relative h-full flex flex-col items-center p-1.5 sm:p-2 md:p-3",
         "border border-border/50 rounded-lg",
         "transition-all duration-300 ease-out",
         "select-none group",
@@ -68,20 +68,22 @@ export function BingoCell({
         </div>
       )}
 
-      {/* Prompt text - full text, no truncation */}
-      <p
-        className={cn(
-          "text-[10px] sm:text-xs md:text-sm font-medium text-center leading-tight",
-          checked ? "text-foreground/70" : "text-foreground",
-          isFreeSpace && "font-bold text-primary"
-        )}
-      >
-        {prompt}
-      </p>
+      {/* Prompt text - centered in available space */}
+      <div className="flex-1 flex items-center justify-center w-full">
+        <p
+          className={cn(
+            "text-[10px] sm:text-xs md:text-sm font-medium text-center leading-tight",
+            checked ? "text-foreground/70" : "text-foreground",
+            isFreeSpace && "font-bold text-primary"
+          )}
+        >
+          {prompt}
+        </p>
+      </div>
 
-      {/* Note input */}
+      {/* Note input - always at bottom */}
       {!isFreeSpace && (
-        <div className="w-full mt-1 sm:mt-2">
+        <div className="w-full mt-auto">
           <Input
             ref={inputRef}
             type="text"
