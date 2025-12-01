@@ -7,7 +7,6 @@ import { BingoCell } from "@/components/BingoCell";
 import { useLocalBingoStorage } from "@/hooks/useLocalBingoStorage";
 import { useBingoDetection } from "@/hooks/useBingoDetection";
 import { toast } from "sonner";
-import confetti from "canvas-confetti";
 import type { BingoCardData } from "@/data/bingoCards";
 import { cn } from "@/lib/utils";
 import { RotateCcw } from "lucide-react";
@@ -54,35 +53,6 @@ export function BingoCard({ cardData }: BingoCardProps) {
         }!`,
         duration: 5000,
       });
-
-      // Fire confetti!
-      const duration = 3000;
-      const animationEnd = Date.now() + duration;
-
-      const randomInRange = (min: number, max: number) =>
-        Math.random() * (max - min) + min;
-
-      const interval = setInterval(() => {
-        const timeLeft = animationEnd - Date.now();
-
-        if (timeLeft <= 0) {
-          clearInterval(interval);
-          return;
-        }
-
-        const particleCount = 50 * (timeLeft / duration);
-
-        confetti({
-          particleCount,
-          startVelocity: 30,
-          spread: 360,
-          origin: {
-            x: randomInRange(0.1, 0.9),
-            y: Math.random() - 0.2,
-          },
-          colors: ["#f59e0b", "#ef4444", "#10b981", "#3b82f6", "#8b5cf6"],
-        });
-      }, 250);
     }
 
     prevLinesCountRef.current = currentCount;

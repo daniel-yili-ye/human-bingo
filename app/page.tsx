@@ -1,15 +1,7 @@
-"use client";
-
-import { useState } from "react";
-import { BingoCard } from "@/components/BingoCard";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { bingoCards, cardIds } from "@/data/bingoCards";
+import { BingoCardSelector } from "@/components/BingoCardSelector";
 import { Info } from "lucide-react";
 
 export default function Home() {
-  const [activeCardId, setActiveCardId] = useState(cardIds[0]);
-  const activeCard = bingoCards[activeCardId];
-
   return (
     <main className="min-h-screen bg-linear-to-br from-background via-background to-accent/20">
       {/* Decorative background elements */}
@@ -49,30 +41,8 @@ export default function Home() {
             </div>
           </div>
         </div>
-        {/* Card Selector */}
-        <Tabs
-          value={activeCardId}
-          onValueChange={setActiveCardId}
-          className="flex flex-col items-center mb-6 sm:mb-8"
-        >
-          <TabsList className="h-auto gap-1 p-1">
-            {cardIds.map((cardId) => {
-              const card = bingoCards[cardId];
-              return (
-                <TabsTrigger
-                  key={cardId}
-                  value={cardId}
-                  className="w-full px-6 py-2 text-sm data-[state=active]:shadow-md"
-                >
-                  {card.name}
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
-        </Tabs>
 
-        {/* Bingo Card */}
-        <BingoCard cardData={activeCard} />
+        <BingoCardSelector />
       </div>
     </main>
   );

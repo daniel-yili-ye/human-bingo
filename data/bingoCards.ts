@@ -91,7 +91,7 @@ export const bingoCards: Record<string, BingoCardData> = {
       "Loves thrift shopping",
       "Has pulled an all-nighter",
       "Has been on a solo trip",
-      "Has a streaming addiction",
+      "Has an Instagram time-limit",
       "Makes playlists on Spotify",
       "Is married",
       "Is a night owl",
