@@ -4,10 +4,14 @@ import { useState } from "react";
 import { BingoCard } from "@/components/BingoCard";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { bingoCards, cardIds } from "@/data/bingoCards";
+import { useBingoState } from "@/hooks/useBingoState";
 
 export function BingoCardSelector() {
   const [activeCardId, setActiveCardId] = useState(cardIds[0]);
   const activeCard = bingoCards[activeCardId];
+
+  const { getCardState, getCheckedCells, updateNote, resetCard } =
+    useBingoState();
 
   return (
     <>
@@ -34,7 +38,13 @@ export function BingoCardSelector() {
       </Tabs>
 
       {/* Bingo Card */}
-      <BingoCard cardData={activeCard} />
+      <BingoCard
+        cardData={activeCard}
+        state={getCardState(activeCardId)}
+        checkedCells={getCheckedCells(activeCardId)}
+        onNoteChange={(index, note) => updateNote(activeCardId, index, note)}
+        onReset={() => resetCard(activeCardId)}
+      />
     </>
   );
 }

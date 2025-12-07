@@ -4,21 +4,28 @@ import { useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BingoCell } from "@/components/BingoCell";
-import { useLocalBingoStorage } from "@/hooks/useLocalBingoStorage";
 import { useBingoDetection } from "@/hooks/useBingoDetection";
 import { toast } from "sonner";
 import type { BingoCardData } from "@/data/bingoCards";
+import type { BingoState } from "@/hooks/useBingoState";
 import { cn } from "@/lib/utils";
 import { RotateCcw } from "lucide-react";
 
 type BingoCardProps = {
   cardData: BingoCardData;
+  state: BingoState;
+  checkedCells: boolean[];
+  onNoteChange: (index: number, note: string) => void;
+  onReset: () => void;
 };
 
-export function BingoCard({ cardData }: BingoCardProps) {
-  const { state, checkedCells, isLoaded, updateNote, resetCard } =
-    useLocalBingoStorage(cardData.id);
-
+export function BingoCard({
+  cardData,
+  state,
+  checkedCells,
+  onNoteChange,
+  onReset,
+}: BingoCardProps) {
   // Create cell state array for bingo detection
   const cellsForDetection = checkedCells.map((checked, index) => ({
     checked,
@@ -32,8 +39,6 @@ export function BingoCard({ cardData }: BingoCardProps) {
   const prevLinesCountRef = useRef(0);
 
   useEffect(() => {
-    if (!isLoaded) return;
-
     const currentCount = completedLines.length;
     const prevCount = prevLinesCountRef.current;
 
@@ -56,27 +61,15 @@ export function BingoCard({ cardData }: BingoCardProps) {
     }
 
     prevLinesCountRef.current = currentCount;
-  }, [completedLines, isLoaded]);
+  }, [completedLines]);
 
   const handleReset = () => {
-    resetCard();
+    onReset();
     prevLinesCountRef.current = 0;
     toast.info("Card reset!", {
       description: "All cells have been cleared.",
     });
   };
-
-  if (!isLoaded) {
-    return (
-      <Card className="w-full max-w-2xl mx-auto">
-        <CardContent className="p-8">
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <Card
@@ -117,7 +110,7 @@ export function BingoCard({ cardData }: BingoCardProps) {
               note={state.cells[index]?.note ?? ""}
               isWinning={winningCells.has(index)}
               isFreeSpace={index === 12}
-              onNoteChange={(note) => updateNote(index, note)}
+              onNoteChange={(note) => onNoteChange(index, note)}
             />
           ))}
         </div>
