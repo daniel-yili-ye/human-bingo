@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { signInWithGoogle } from "@/actions/auth";
 import { LogoMark } from "@/components/logo";
 import { Button } from "@/components/ui/button";
@@ -30,24 +31,16 @@ function GoogleMark() {
   );
 }
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ next?: string; error?: string }>;
-}) {
+type LoginSearchParams = Promise<{ next?: string; error?: string }>;
+
+/** Everything that depends on the request (URL and session) streams in behind the static shell. */
+async function SignInForm({ searchParams }: { searchParams: LoginSearchParams }) {
   const { next: rawNext, error } = await searchParams;
   const next = safeNextPath(rawNext);
   if (await getUser()) redirect(next);
 
   return (
-    <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-4 py-12">
-      <div className="mb-8 space-y-2 text-center">
-        <LogoMark className="mx-auto size-10" />
-        <h1 className="text-2xl font-semibold tracking-tight">Sign in to Human Bingo</h1>
-        <p className="text-sm text-pretty text-muted-foreground">
-          Save your boards, edit them later and reuse them. Players never need to sign in.
-        </p>
-      </div>
+    <>
       <form action={signInWithGoogle}>
         <input type="hidden" name="next" value={next} />
         <Button type="submit" variant="outline" className="h-10 w-full">
@@ -60,6 +53,32 @@ export default async function LoginPage({
           Couldn&apos;t sign in with Google. Try again.
         </p>
       )}
+    </>
+  );
+}
+
+function SignInFormFallback() {
+  return (
+    <Button variant="outline" className="h-10 w-full" disabled>
+      <GoogleMark />
+      Continue with Google
+    </Button>
+  );
+}
+
+export default function LoginPage({ searchParams }: { searchParams: LoginSearchParams }) {
+  return (
+    <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-4 py-12">
+      <div className="mb-8 space-y-2 text-center">
+        <LogoMark className="mx-auto size-10" />
+        <h1 className="text-2xl font-semibold tracking-tight">Sign in to Human Bingo</h1>
+        <p className="text-sm text-pretty text-muted-foreground">
+          Save your boards, edit them later and reuse them. Players never need to sign in.
+        </p>
+      </div>
+      <Suspense fallback={<SignInFormFallback />}>
+        <SignInForm searchParams={searchParams} />
+      </Suspense>
     </main>
   );
 }

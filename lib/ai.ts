@@ -1,6 +1,6 @@
 import "server-only";
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { z } from "zod";
 import { MAX_PROMPT_LENGTH } from "@/lib/board";
 import { env } from "@/lib/env";
@@ -35,6 +35,8 @@ export async function generateBingoPrompts(topic: string, count: number): Promis
         responseMimeType: "application/json",
         responseJsonSchema: z.toJSONSchema(responseSchema),
         temperature: 1,
+        // Short, low-stakes copy: keep reasoning brief so drafts come back fast.
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
         abortSignal: AbortSignal.timeout(30_000),
       },
     });

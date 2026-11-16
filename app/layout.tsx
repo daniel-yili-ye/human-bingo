@@ -32,8 +32,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={geist.variable} suppressHydrationWarning>
-      {/* --page-max keeps the header exactly as wide as the page below it. */}
-      <body className="flex min-h-dvh flex-col antialiased [--page-max:var(--container-5xl)] has-data-[page=narrow]:[--page-max:var(--container-xl)] max-lg:has-data-[page=editor]:[--page-max:var(--container-xl)]">
+      <body className="flex min-h-dvh flex-col antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <SiteHeader />
           {children}
