@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutGridIcon, LogOutIcon } from "lucide-react";
+import { LayoutGridIcon, LogOutIcon, PlusIcon } from "lucide-react";
 import Link from "next/link";
 import { signOut } from "@/actions/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -32,6 +32,12 @@ export function UserMenu({ label, avatarUrl }: UserMenuProps) {
           {label}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/new">
+            <PlusIcon />
+            New board
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href="/boards">
             <LayoutGridIcon />

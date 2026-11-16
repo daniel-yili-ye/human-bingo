@@ -12,7 +12,7 @@ type LoadingProps = {
 
 const WIDTHS = {
   board: "max-w-xl",
-  list: "max-w-3xl",
+  list: "max-w-xl",
   editor: "max-w-xl lg:max-w-5xl",
 };
 
@@ -26,6 +26,10 @@ export default function Loading({ layout = "board" }: LoadingProps) {
       {layout === "list" ? (
         <>
           <Skeleton className="h-8 w-40" />
+          <div className="space-y-3">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+          </div>
           <Skeleton className="h-56 w-full rounded-xl" />
         </>
       ) : (
