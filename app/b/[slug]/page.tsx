@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import Loading from "@/app/loading";
 import { BingoBoard } from "@/components/bingo-board";
 import { PageContainer } from "@/components/page-container";
-import { ShareButton } from "@/components/share-button";
+import { ShareDialog } from "@/components/share-dialog";
 import { getBoardBySlug } from "@/lib/boards";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -30,17 +30,14 @@ async function Board({ params }: Props) {
   return (
     <PageContainer
       title={board.title}
-      description="Find someone who fits a square and write their name on it."
-      actions={<ShareButton path={`/b/${board.slug}`} title={board.title} />}
+      description="Find someone who fits a square and write their name on it. Each person only counts once. Finish a row, column or diagonal, then shout bingo."
+      actions={<ShareDialog slug={board.slug} title={board.title} />}
     >
       <BingoBoard
         board={board}
         // Editing a board changes updatedAt, which starts players on a fresh card.
         storageKey={`${board.slug}:${board.updatedAt}`}
       />
-      <p className="text-sm text-pretty text-muted-foreground">
-        Each person only counts once. Finish a row, column or diagonal, then shout bingo.
-      </p>
       <p className="text-center text-sm text-muted-foreground">
         Made with{" "}
         <Link href="/" className="font-medium text-foreground underline underline-offset-4">

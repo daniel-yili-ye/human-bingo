@@ -1,4 +1,10 @@
-import { LayoutGridIcon, PlusIcon, SearchXIcon } from "lucide-react";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  LayoutGridIcon,
+  PlusIcon,
+  SearchXIcon,
+} from "lucide-react";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
@@ -39,15 +45,28 @@ async function Boards({ searchParams }: Pick<PageProps<"/boards">, "searchParams
   };
   const filtered = Boolean(filters.search || filters.from || filters.to);
   // The browser sends its zone with a date range, so days mean local days.
-  const timeZone = first(params.tz);
-  const boards = await listOwnBoards({
+  const timeZone = isTimeZone(first(params.tz)) ? first(params.tz) : "";
+  const requestedPage = Number.parseInt(first(params.page), 10);
+  const { boards, total, page, pageCount } = await listOwnBoards({
     ...filters,
-    timeZone: isTimeZone(timeZone) ? timeZone : "UTC",
+    timeZone: timeZone || "UTC",
+    page: Number.isSafeInteger(requestedPage) ? requestedPage : 1,
+  });
+
+  const pageHref = (target: number) => ({
+    pathname: "/boards",
+    query: {
+      ...(filters.search && { q: filters.search }),
+      ...(filters.from && { from: filters.from }),
+      ...(filters.to && { to: filters.to }),
+      ...(timeZone && { tz: timeZone }),
+      ...(target > 1 && { page: target }),
+    },
   });
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 pt-6 pb-16">
-      {boards.length === 0 && !filtered ? (
+      {total === 0 && !filtered ? (
         <Empty className="mt-10 border">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -111,6 +130,44 @@ async function Boards({ searchParams }: Pick<PageProps<"/boards">, "searchParams
                 </li>
               ))}
             </ul>
+          )}
+          {pageCount > 1 && (
+            <nav aria-label="Pages" className="flex items-center justify-between gap-4">
+              <Button asChild={page > 1} variant="outline" size="sm" disabled={page <= 1}>
+                {page > 1 ? (
+                  <Link href={pageHref(page - 1)}>
+                    <ChevronLeftIcon data-icon="inline-start" />
+                    Previous
+                  </Link>
+                ) : (
+                  <>
+                    <ChevronLeftIcon data-icon="inline-start" />
+                    Previous
+                  </>
+                )}
+              </Button>
+              <p className="text-sm text-muted-foreground tabular-nums">
+                Page {page} of {pageCount} · {total} boards
+              </p>
+              <Button
+                asChild={page < pageCount}
+                variant="outline"
+                size="sm"
+                disabled={page >= pageCount}
+              >
+                {page < pageCount ? (
+                  <Link href={pageHref(page + 1)}>
+                    Next
+                    <ChevronRightIcon data-icon="inline-end" />
+                  </Link>
+                ) : (
+                  <>
+                    Next
+                    <ChevronRightIcon data-icon="inline-end" />
+                  </>
+                )}
+              </Button>
+            </nav>
           )}
         </div>
       )}
