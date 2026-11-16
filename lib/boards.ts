@@ -81,32 +81,67 @@ export type BoardListFilters = {
   to: string;
   /** The time zone those days are in, such as "America/Toronto". */
   timeZone: string;
+  /** 1-based. */
+  page: number;
 };
 
-/** The signed-in user's boards that match the filters, newest first. */
-export async function listOwnBoards(filters: BoardListFilters): Promise<BoardSummary[]> {
+export type BoardPage = {
+  boards: BoardSummary[];
+  /** How many boards match the filters, across all pages. */
+  total: number;
+  page: number;
+  pageCount: number;
+};
+
+export const BOARDS_PER_PAGE = 10;
+
+/** One page of the signed-in user's boards that match the filters, newest first. */
+export async function listOwnBoards(filters: BoardListFilters): Promise<BoardPage> {
   const supabase = await createClient();
-  let query = supabase
-    .from("boards")
-    .select("slug, title, row_count, col_count, free_space, created_at");
-  if (filters.search) {
-    // Escape the LIKE wildcards so they are matched literally.
-    query = query.ilike("title", `%${filters.search.replace(/[\\%_]/g, "\\$&")}%`);
-  }
   const from = startOfDayInZone(filters.from, filters.timeZone);
   // Up to, but not including, the start of the following day.
   const until = startOfDayInZone(filters.to, filters.timeZone, 1);
-  if (from) query = query.gte("created_at", from.toISOString());
-  if (until) query = query.lt("created_at", until.toISOString());
-  const { data, error } = await query.order("created_at", { ascending: false });
-  if (error) throw new Error(`Failed to load boards: ${error.message}`);
 
-  return data.map((row) => ({
-    slug: row.slug,
-    title: row.title,
-    rows: row.row_count,
-    cols: row.col_count,
-    freeSpace: row.free_space,
-    createdAt: row.created_at,
-  }));
+  const fetchPage = (page: number) => {
+    let query = supabase
+      .from("boards")
+      .select("slug, title, row_count, col_count, free_space, created_at", { count: "exact" });
+    if (filters.search) {
+      // Escape the LIKE wildcards so they are matched literally.
+      query = query.ilike("title", `%${filters.search.replace(/[\\%_]/g, "\\$&")}%`);
+    }
+    if (from) query = query.gte("created_at", from.toISOString());
+    if (until) query = query.lt("created_at", until.toISOString());
+
+    const start = (page - 1) * BOARDS_PER_PAGE;
+    return query
+      .order("created_at", { ascending: false })
+      // A tiebreak, so boards made at the same instant keep one order across pages.
+      .order("slug")
+      .range(start, start + BOARDS_PER_PAGE - 1);
+  };
+
+  let page = Math.max(1, filters.page);
+  let { data, error, count } = await fetchPage(page);
+  // Past the end (a stale link, or boards were deleted): show the last page.
+  const pageCount = Math.max(1, Math.ceil((count ?? 0) / BOARDS_PER_PAGE));
+  if (page > pageCount) {
+    page = pageCount;
+    ({ data, error, count } = await fetchPage(page));
+  }
+  if (error || !data) throw new Error(`Failed to load boards: ${error?.message}`);
+
+  return {
+    total: count ?? 0,
+    page,
+    pageCount,
+    boards: data.map((row) => ({
+      slug: row.slug,
+      title: row.title,
+      rows: row.row_count,
+      cols: row.col_count,
+      freeSpace: row.free_space,
+      createdAt: row.created_at,
+    })),
+  };
 }

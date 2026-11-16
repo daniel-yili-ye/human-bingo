@@ -50,7 +50,8 @@ export async function createBoard(input: unknown): Promise<ActionResult> {
     return SAVE_FAILED;
   }
 
-  redirect(`/b/${slug}`);
+  // Opens the share dialog on arrival.
+  redirect(`/b/${slug}?share=1`);
 }
 
 export async function updateBoard(slug: string, input: unknown): Promise<ActionResult> {
