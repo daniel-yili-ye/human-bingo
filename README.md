@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Human Bingo
 
-## Getting Started
+Make a custom people-bingo board, share its link, and let a room full of people find each other.
 
-First, run the development server:
+- **Create** boards from 3 × 3 to 6 × 6, written by hand or drafted by AI from a short description.
+- **Share** each board at its own unlisted URL (`/b/<slug>`). Players need no account.
+- **Play** on any phone. Progress is saved on the device; each person's name counts once.
+- **Manage** your boards (open, share, edit, delete) under `/boards`.
+
+## Stack
+
+Next.js 16 (App Router, Cache Components, Server Actions) · React 19 · Supabase (Postgres, Auth, RLS) · shadcn/ui + Tailwind CSS 4 · Gemini via `@google/genai` · Zod
+
+## Setup
+
+Requires Node 22+, pnpm, the [Supabase CLI](https://supabase.com/docs/guides/local-development), and Docker for the local database.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp .env.example .env.local   # then fill in the values below
+supabase start               # boots Postgres + Auth and applies supabase/migrations
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+| Variable | Where it comes from |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `supabase status` locally, or Project Settings → API when hosted |
+| `GEMINI_API_KEY` | Free key from [Google AI Studio](https://aistudio.google.com/apikey) |
+| `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID`, `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET` | Local Supabase only; see below |
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Google sign-in
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. In Google Cloud Console, create an OAuth client of type **Web application**.
+2. Add the authorised redirect URI:
+   - local: `http://127.0.0.1:54321/auth/v1/callback`
+   - hosted: `https://<project-ref>.supabase.co/auth/v1/callback`
+3. Local: put the client ID and secret in `.env.local` and restart `supabase start`.
+   Hosted: enter them under Authentication → Providers → Google.
+4. Hosted: under Authentication → URL Configuration, set the Site URL and add `https://<your-domain>/auth/callback` to the redirect allow-list.
 
-## Learn More
+### Deploying the database
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+supabase link --project-ref <project-ref>
+supabase db push
+supabase gen types typescript --linked > lib/supabase/database.types.ts
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## How it fits together
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Path | Purpose |
+| --- | --- |
+| `supabase/migrations` | Schema, Row Level Security, and the two RPCs |
+| `lib/board.ts` | Shared domain logic: grid maths, win detection, Zod schemas |
+| `lib/boards.ts` | Data access. Public board lookups are cached and tagged per slug |
+| `actions/` | Server Actions for auth, board CRUD, and AI generation |
+| `hooks/use-board-progress.ts` | Hydration-safe, per-device progress storage |
+| `proxy.ts` | Refreshes Supabase sessions for signed-in requests |
 
-## Deploy on Vercel
+Security notes: boards are readable only by their owner through the table; everyone else goes through `get_board_by_slug`, which returns a single board for an exact slug. All writes are checked by RLS and re-validated on the server. AI generation requires sign-in and is limited to 10 requests per user per hour by `consume_ai_generation`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Scripts
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `pnpm dev` / `pnpm build` / `pnpm start`
+- `pnpm lint` and `pnpm typecheck`
+- `pnpm qr-local` prints a QR code for opening the dev server on a phone

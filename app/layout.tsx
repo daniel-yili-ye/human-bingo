@@ -1,42 +1,44 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist } from "next/font/google";
+import { SiteHeader } from "@/components/site-header";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const description =
+  "Make a custom people-bingo board in a minute, share one link, and get a room full of strangers talking.";
 
 export const metadata: Metadata = {
-  title: "Human Bingo",
-  description: "A fun icebreaker game to get to know people!",
+  title: { default: "Human Bingo — the icebreaker card", template: "%s · Human Bingo" },
+  description,
+  applicationName: "Human Bingo",
+  openGraph: { siteName: "Human Bingo", type: "website", description },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // Stops iOS zooming in when a small name field is focused. Pinch-to-zoom
+  // stays available (the old `userScalable: false` blocked it).
   maximumScale: 1,
-  userScalable: false,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-        <Toaster position="top-center" richColors closeButton />
+    <html lang="en" className={geist.variable} suppressHydrationWarning>
+      {/* --page-max keeps the header exactly as wide as the page below it. */}
+      <body className="flex min-h-dvh flex-col antialiased [--page-max:var(--container-5xl)] has-data-[page=narrow]:[--page-max:var(--container-xl)] max-lg:has-data-[page=editor]:[--page-max:var(--container-xl)]">
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <SiteHeader />
+          {children}
+          <Toaster richColors closeButton position="top-center" />
+        </ThemeProvider>
       </body>
     </html>
   );
