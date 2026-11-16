@@ -1,10 +1,12 @@
-import { LayoutGridIcon, PlusIcon } from "lucide-react";
+import { LayoutGridIcon, PlusIcon, SearchXIcon } from "lucide-react";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
 import Loading from "@/app/loading";
+import { BoardFilters } from "@/components/board-filters";
 import { BoardRowMenu } from "@/components/board-row-menu";
 import { GridGlyph } from "@/components/grid-glyph";
+import { LocalDate } from "@/components/local-date";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -15,19 +17,37 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { requireUser } from "@/lib/auth";
+import { MAX_TITLE_LENGTH } from "@/lib/board";
 import { listOwnBoards } from "@/lib/boards";
+import { isTimeZone, parseIsoDate } from "@/lib/dates";
 
 export const metadata: Metadata = { title: "Your boards" };
 
-const dateFormat = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeZone: "UTC" });
+const first = (value: string | string[] | undefined) =>
+  (Array.isArray(value) ? value[0] : value) ?? "";
 
-async function Boards() {
+const isoDate = (value: string) => (parseIsoDate(value) ? value : "");
+
+async function Boards({ searchParams }: Pick<PageProps<"/boards">, "searchParams">) {
   await requireUser("/boards");
-  const boards = await listOwnBoards();
+
+  const params = await searchParams;
+  const filters = {
+    search: first(params.q).trim().slice(0, MAX_TITLE_LENGTH),
+    from: isoDate(first(params.from)),
+    to: isoDate(first(params.to)),
+  };
+  const filtered = Boolean(filters.search || filters.from || filters.to);
+  // The browser sends its zone with a date range, so days mean local days.
+  const timeZone = first(params.tz);
+  const boards = await listOwnBoards({
+    ...filters,
+    timeZone: isTimeZone(timeZone) ? timeZone : "UTC",
+  });
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 pt-6 pb-16">
-      {boards.length === 0 ? (
+    <main className="mx-auto w-full max-w-xl flex-1 px-4 pt-6 pb-16">
+      {boards.length === 0 && !filtered ? (
         <Empty className="mt-10 border">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -58,38 +78,51 @@ async function Boards() {
               </Link>
             </Button>
           </div>
-          <ul className="divide-y rounded-xl border">
-            {boards.map((board) => (
-              <li key={board.slug} className="relative flex items-center gap-4 p-4">
-                <span className="flex size-10 shrink-0 items-center justify-center">
-                  <GridGlyph grid={board} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <Link
-                    href={`/b/${board.slug}`}
-                    className="block truncate font-medium after:absolute after:inset-0"
-                  >
-                    {board.title}
-                  </Link>
-                  <p className="text-sm text-muted-foreground">
-                    {board.rows} × {board.cols} · {dateFormat.format(new Date(board.createdAt))}
-                  </p>
-                </div>
-                <BoardRowMenu slug={board.slug} title={board.title} />
-              </li>
-            ))}
-          </ul>
+          <BoardFilters applied={filters} />
+          {boards.length === 0 ? (
+            <Empty className="border">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <SearchXIcon />
+                </EmptyMedia>
+                <EmptyTitle>No boards match</EmptyTitle>
+                <EmptyDescription>Try a different title or a wider date range.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            <ul className="divide-y rounded-xl border">
+              {boards.map((board) => (
+                <li key={board.slug} className="relative flex items-center gap-4 p-4">
+                  <span className="flex size-10 shrink-0 items-center justify-center">
+                    <GridGlyph grid={board} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      href={`/b/${board.slug}`}
+                      className="block truncate font-medium after:absolute after:inset-0"
+                    >
+                      {board.title}
+                    </Link>
+                    <p className="text-sm text-muted-foreground">
+                      {board.rows} × {board.cols} · <LocalDate value={board.createdAt} />
+                    </p>
+                  </div>
+                  <BoardRowMenu slug={board.slug} title={board.title} />
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </main>
   );
 }
 
-export default function BoardsPage() {
+export default function BoardsPage({ searchParams }: PageProps<"/boards">) {
   return (
     // A boundary inside the page, so client navigations get a fallback too.
     <Suspense fallback={<Loading layout="list" />}>
-      <Boards />
+      <Boards searchParams={searchParams} />
     </Suspense>
   );
 }

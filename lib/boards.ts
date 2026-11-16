@@ -2,6 +2,7 @@ import "server-only";
 
 import { cacheLife, cacheTag } from "next/cache";
 import { SLUG_PATTERN, type Board } from "@/lib/board";
+import { startOfDayInZone } from "@/lib/dates";
 import { createClient, createPublicClient } from "@/lib/supabase/server";
 
 export const boardTag = (slug: string) => `board:${slug}`;
@@ -72,13 +73,32 @@ export type BoardSummary = Pick<Board, "slug" | "title" | "rows" | "cols" | "fre
   createdAt: string;
 };
 
-/** The signed-in user's boards, newest first. */
-export async function listOwnBoards(): Promise<BoardSummary[]> {
+export type BoardListFilters = {
+  /** Matches anywhere in the title. */
+  search: string;
+  /** Inclusive created-date range, as YYYY-MM-DD or empty. */
+  from: string;
+  to: string;
+  /** The time zone those days are in, such as "America/Toronto". */
+  timeZone: string;
+};
+
+/** The signed-in user's boards that match the filters, newest first. */
+export async function listOwnBoards(filters: BoardListFilters): Promise<BoardSummary[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("boards")
-    .select("slug, title, row_count, col_count, free_space, created_at")
-    .order("created_at", { ascending: false });
+    .select("slug, title, row_count, col_count, free_space, created_at");
+  if (filters.search) {
+    // Escape the LIKE wildcards so they are matched literally.
+    query = query.ilike("title", `%${filters.search.replace(/[\\%_]/g, "\\$&")}%`);
+  }
+  const from = startOfDayInZone(filters.from, filters.timeZone);
+  // Up to, but not including, the start of the following day.
+  const until = startOfDayInZone(filters.to, filters.timeZone, 1);
+  if (from) query = query.gte("created_at", from.toISOString());
+  if (until) query = query.lt("created_at", until.toISOString());
+  const { data, error } = await query.order("created_at", { ascending: false });
   if (error) throw new Error(`Failed to load boards: ${error.message}`);
 
   return data.map((row) => ({
