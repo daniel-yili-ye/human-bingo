@@ -18,17 +18,15 @@ async function AccountNav() {
     );
   }
 
-  return (
-    <>
-      <UserMenu label={user.name ?? user.email ?? "Account"} avatarUrl={user.avatarUrl} />
-    </>
-  );
+  return <UserMenu label={user.name ?? user.email ?? "Account"} avatarUrl={user.avatarUrl} />;
 }
 
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-(--page-max) items-center justify-between px-4">
+      {/* Fixed width: pages hidden by navigation stay in the DOM, so the header
+          must not size itself from whichever page is (or was) mounted. */}
+      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
         <Logo />
         <nav className="flex items-center gap-1">
           <ThemeToggle />

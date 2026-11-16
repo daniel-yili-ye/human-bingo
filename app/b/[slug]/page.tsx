@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import Loading from "@/app/loading";
 import { BingoBoard } from "@/components/bingo-board";
 import { PageContainer } from "@/components/page-container";
 import { ShareButton } from "@/components/share-button";
@@ -20,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function BoardPage({ params }: Props) {
+async function Board({ params }: Props) {
   const { slug } = await params;
   const board = await getBoardBySlug(slug);
   if (!board) notFound();
@@ -47,5 +49,14 @@ export default async function BoardPage({ params }: Props) {
         . Make your own card in a minute.
       </p>
     </PageContainer>
+  );
+}
+
+export default function BoardPage({ params }: Props) {
+  return (
+    // A boundary inside the page, so client navigations get a fallback too.
+    <Suspense fallback={<Loading />}>
+      <Board params={params} />
+    </Suspense>
   );
 }

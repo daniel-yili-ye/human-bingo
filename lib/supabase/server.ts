@@ -3,12 +3,17 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { env } from "@/lib/env";
 import type { Database } from "./database.types";
 
 /** Per-request client carrying the signed-in user's session. */
 export async function createClient() {
   const cookieStore = await cookies();
+  // auth-js compares the session expiry against `Date.now()`. Cookies alone
+  // still allow runtime prerendering, where reading the clock is an error, so
+  // pin every session read to an actual request.
+  await connection();
 
   return createServerClient<Database>(env.supabaseUrl, env.supabaseKey, {
     cookies: {

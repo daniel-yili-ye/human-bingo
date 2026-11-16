@@ -120,7 +120,9 @@ export async function generatePrompts(input: unknown): Promise<ActionResult<stri
     return { ok: true, data: prompts };
   } catch (cause) {
     if (!(cause instanceof AiUnavailableError)) throw cause;
-    console.error("generatePrompts failed", cause);
+    // Log the underlying error too: the wrapper alone hides whether this was
+    // a timeout, a quota limit or a rejected model.
+    console.error("generatePrompts failed:", cause.message, "-", String(cause.cause));
     return { ok: false, error: "The AI is busy right now. Try again in a moment." };
   }
 }

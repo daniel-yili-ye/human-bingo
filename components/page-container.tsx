@@ -1,3 +1,5 @@
+import { cn } from "cn";
+
 type PageContainerProps = {
   title: string;
   description?: React.ReactNode;
@@ -17,10 +19,12 @@ export function PageContainer({
   children,
 }: PageContainerProps) {
   return (
-    // data-page sets --page-max on <body>, which the site header shares.
     <main
-      data-page={wide ? "editor" : "narrow"}
-      className="mx-auto w-full max-w-(--page-max) flex-1 space-y-6 px-4 pt-6 pb-16"
+      className={cn(
+        "mx-auto w-full flex-1 space-y-6 px-4 pt-6 pb-16",
+        // The editor stacks into one column below lg, so it stays narrow there.
+        wide ? "max-w-xl lg:max-w-5xl" : "max-w-xl",
+      )}
     >
       <div className="flex flex-wrap items-end justify-between gap-4 border-b pb-4">
         <div className="min-w-0">
