@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { StarIcon } from "lucide-react";
+import { Loader2Icon, StarIcon } from "lucide-react";
 
 /** The numbered tag that ties a square on the preview to its text field. */
 export function SquareNumber({
@@ -34,6 +34,8 @@ type BoardPreviewProps = {
   /** Prompt index currently being edited, if any. */
   activeIndex: number | null;
   onSelect: (promptIndex: number) => void;
+  /** True while the squares are being drafted, so the card shows placeholders. */
+  pending?: boolean;
 };
 
 /** The card as players will see it, updating as the form changes. */
@@ -44,9 +46,10 @@ export function BoardPreview({
   prompts,
   activeIndex,
   onSelect,
+  pending = false,
 }: BoardPreviewProps) {
   return (
-    <section aria-label="Board preview" className="space-y-3">
+    <section aria-label="Board preview" aria-busy={pending} className="space-y-3">
       <div className="flex items-baseline justify-between gap-3">
         <h2
           className={cn(
@@ -56,11 +59,21 @@ export function BoardPreview({
         >
           {title.trim() || "Untitled board"}
         </h2>
-        <span className="shrink-0 text-xs text-muted-foreground">Live preview</span>
+        {pending ? (
+          <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-dauber">
+            <Loader2Icon aria-hidden="true" className="size-3 animate-spin" />
+            Drafting squares…
+          </span>
+        ) : (
+          <span className="shrink-0 text-xs text-muted-foreground">Live preview</span>
+        )}
       </div>
 
       <div
-        className="grid gap-px overflow-hidden rounded-xl border bg-border"
+        className={cn(
+          "grid gap-px overflow-hidden rounded-xl border bg-border transition-shadow",
+          pending && "ring-2 ring-dauber/40",
+        )}
         style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
       >
         {cells.map((promptIndex, cellIndex) => {
@@ -87,6 +100,7 @@ export function BoardPreview({
               key={cellIndex}
               type="button"
               onClick={() => onSelect(promptIndex)}
+              disabled={pending}
               aria-label={`Edit square ${promptIndex + 1}${prompt ? `: ${prompt}` : " (empty)"}`}
               className={cn(
                 "relative flex aspect-square min-w-0 flex-col overflow-hidden bg-card p-1 text-center transition-colors outline-none hover:bg-muted focus-visible:bg-muted sm:p-1.5",
@@ -98,14 +112,28 @@ export function BoardPreview({
                 active={active}
                 className="size-4 text-[9px]"
               />
-              <span
-                className={cn(
-                  "flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden text-[10px] leading-tight font-medium text-balance wrap-anywhere sm:text-xs",
-                  !prompt && "font-normal text-muted-foreground/60",
-                )}
-              >
-                {prompt || "Empty"}
-              </span>
+              {pending ? (
+                // Placeholder lines that pulse in a diagonal wave across the card.
+                <span
+                  aria-hidden="true"
+                  className="flex min-h-0 w-full flex-1 animate-pulse flex-col items-center justify-center gap-1 motion-reduce:animate-none"
+                  style={{
+                    animationDelay: `${(Math.floor(cellIndex / cols) + (cellIndex % cols)) * 120}ms`,
+                  }}
+                >
+                  <span className="h-1.5 w-4/5 rounded-full bg-dauber/40" />
+                  <span className="h-1.5 w-3/5 rounded-full bg-dauber/40" />
+                </span>
+              ) : (
+                <span
+                  className={cn(
+                    "flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden text-[10px] leading-tight font-medium text-balance wrap-anywhere sm:text-xs",
+                    !prompt && "font-normal text-muted-foreground/60",
+                  )}
+                >
+                  {prompt || "Empty"}
+                </span>
+              )}
               {/* The line players write a name on. */}
               <span
                 aria-hidden="true"

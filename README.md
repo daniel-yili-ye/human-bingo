@@ -9,7 +9,7 @@ Make a custom people-bingo board, share its link, and let a room full of people 
 
 ## Stack
 
-Next.js 16 (App Router, Cache Components, Server Actions) · React 19 · Supabase (Postgres, Auth, RLS) · shadcn/ui + Tailwind CSS 4 · Gemini via `@google/genai` · Zod
+Next.js 16 (App Router, Cache Components, Server Actions) · React 19 · Supabase (Postgres, Auth, RLS) · shadcn/ui + Tailwind CSS 4 · Groq and Gemini via the AI SDK · Zod
 
 ## Setup
 
@@ -17,7 +17,7 @@ Requires Node 22+, pnpm, the [Supabase CLI](https://supabase.com/docs/guides/loc
 
 ```bash
 pnpm install
-cp .env.example .env.local   # then fill in the values below
+touch .env.local             # then add the variables below
 supabase start               # boots Postgres + Auth and applies supabase/migrations
 pnpm dev
 ```
@@ -25,7 +25,9 @@ pnpm dev
 | Variable | Where it comes from |
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `supabase status` locally, or Project Settings → API when hosted |
-| `GEMINI_API_KEY` | Free key from [Google AI Studio](https://aistudio.google.com/apikey) |
+| `GROQ_API_KEY` | Free key from the [Groq console](https://console.groq.com/keys). Tried first when set |
+| `GEMINI_API_KEY` | Free key from [Google AI Studio](https://aistudio.google.com/apikey). Used as the fallback, or alone if there is no Groq key |
+| `GROQ_MODEL`, `GEMINI_MODEL` | Optional model overrides |
 | `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID`, `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET` | Local Supabase only; see below |
 
 ### Google sign-in

@@ -1,6 +1,7 @@
 "use client";
 
-import { SparklesIcon } from "lucide-react";
+import { cn } from "cn";
+import { Loader2Icon, SparklesIcon } from "lucide-react";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { createBoard, generatePrompts, updateBoard } from "@/actions/boards";
@@ -205,6 +206,7 @@ export function BoardEditor({ board }: { board?: Board }) {
             prompts={visiblePrompts}
             activeIndex={activeIndex}
             onSelect={(index) => document.getElementById(squareId(index))?.focus()}
+            pending={isGenerating}
           />
         </div>
       </div>
@@ -218,7 +220,12 @@ export function BoardEditor({ board }: { board?: Board }) {
             Something a person in the room could be or have done. One per square.
           </FieldDescription>
 
-          <div className="space-y-2 rounded-lg border bg-muted/50 p-3">
+          <div
+            className={cn(
+              "space-y-2 rounded-lg border bg-muted/50 p-3 transition-colors",
+              isGenerating && "border-dauber/50 bg-dauber/5",
+            )}
+          >
             <FieldLabel htmlFor={`${id}-topic`}>Draft them with AI</FieldLabel>
             <Textarea
               id={`${id}-topic`}
@@ -228,12 +235,21 @@ export function BoardEditor({ board }: { board?: Board }) {
               maxLength={MAX_TOPIC_LENGTH}
               rows={2}
               className="bg-background"
+              disabled={isGenerating}
             />
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs text-muted-foreground">
-                {filledCount > 0
-                  ? "Replaces the squares below."
-                  : "Describe your group or event. You can edit the results."}
+              <p
+                role="status"
+                className={cn(
+                  "text-xs text-muted-foreground",
+                  isGenerating && "font-medium text-dauber",
+                )}
+              >
+                {isGenerating
+                  ? `Writing ${promptCount} squares. This takes a few seconds.`
+                  : filledCount > 0
+                    ? "Replaces the squares below."
+                    : "Describe your group or event. You can edit the results."}
               </p>
               <Button
                 type="button"
@@ -241,13 +257,17 @@ export function BoardEditor({ board }: { board?: Board }) {
                 onClick={generate}
                 disabled={busy || topic.trim().length < 3}
               >
-                <SparklesIcon data-icon="inline-start" />
+                {isGenerating ? (
+                  <Loader2Icon data-icon="inline-start" className="animate-spin" />
+                ) : (
+                  <SparklesIcon data-icon="inline-start" />
+                )}
                 {isGenerating ? "Drafting…" : `Draft ${promptCount} squares`}
               </Button>
             </div>
           </div>
 
-          <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+          <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1" aria-busy={isGenerating}>
             {visiblePrompts.map((prompt, index) => (
               <li key={index} className="flex items-center gap-2">
                 <SquareNumber number={index + 1} active={index === activeIndex} />
@@ -259,7 +279,11 @@ export function BoardEditor({ board }: { board?: Board }) {
                   onChange={(event) =>
                     setPrompts((current) => current.with(index, event.target.value))
                   }
-                  placeholder="Has run a marathon"
+                  placeholder={isGenerating ? "Writing…" : "Has run a marathon"}
+                  // Fields lock and pulse one after another while a draft is on its way.
+                  disabled={isGenerating}
+                  className={cn(isGenerating && "animate-pulse motion-reduce:animate-none")}
+                  style={isGenerating ? { animationDelay: `${index * 80}ms` } : undefined}
                   aria-label={`Square ${index + 1}`}
                   maxLength={MAX_PROMPT_LENGTH}
                   autoComplete="off"
