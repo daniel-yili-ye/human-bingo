@@ -16,8 +16,15 @@ export const env = {
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     );
   },
+  // The AI keys are optional on their own; lib/ai.ts needs at least one of them.
+  get groqApiKey() {
+    return process.env.GROQ_API_KEY || undefined;
+  },
+  get groqModel() {
+    return process.env.GROQ_MODEL || "openai/gpt-oss-120b";
+  },
   get geminiApiKey() {
-    return required("GEMINI_API_KEY", process.env.GEMINI_API_KEY);
+    return process.env.GEMINI_API_KEY || undefined;
   },
   get geminiModel() {
     return process.env.GEMINI_MODEL || "gemini-3.8-flash";
