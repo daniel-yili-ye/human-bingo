@@ -27,9 +27,9 @@ export function LogoMark({ className }: { className?: string }) {
   );
 }
 
-export function Logo() {
+export function Logo({ href = "/" }: { href?: string }) {
   return (
-    <Link href="/" className="flex items-center gap-2 text-base font-semibold tracking-tight">
+    <Link href={href} className="flex items-center gap-2 text-base font-semibold tracking-tight">
       <LogoMark />
       Human Bingo
     </Link>
