@@ -15,6 +15,8 @@ export const metadata: Metadata = {
   description,
   applicationName: "Human Bingo",
   openGraph: { siteName: "Human Bingo", type: "website", description },
+  // Asks X and others for the wide preview; the image is app/opengraph-image.tsx.
+  twitter: { card: "summary_large_image" },
 };
 
 export const viewport: Viewport = {

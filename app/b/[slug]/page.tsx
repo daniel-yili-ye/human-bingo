@@ -14,9 +14,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const board = await getBoardBySlug(slug);
 
+  const title = board?.title ?? "Board not found";
+  const description = board
+    ? `Play “${board.title}” on Human Bingo. Find a different person for every square.`
+    : undefined;
+
   return {
-    title: board?.title ?? "Board not found",
-    description: board ? `Play “${board.title}” on Human Bingo.` : undefined,
+    title,
+    description,
+    // Set here so link previews show the board, not the homepage copy that the
+    // root layout would otherwise pass down. The image comes from opengraph-image.tsx.
+    openGraph: { siteName: "Human Bingo", type: "website", title, description },
     // Boards are unlisted: reachable by link, never indexed.
     robots: { index: false, follow: false },
   };
