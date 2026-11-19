@@ -25,7 +25,7 @@ export function BingoCell({
   return (
     <div
       className={cn(
-        "relative flex aspect-square min-w-0 flex-col overflow-hidden bg-card p-1 transition-colors sm:p-2",
+        "bingo-square relative flex min-w-0 flex-col bg-card p-1 transition-colors sm:p-2",
         isWinning && "bg-dauber/10",
       )}
     >
@@ -36,7 +36,7 @@ export function BingoCell({
           aria-hidden="true"
           className={cn(
             "absolute inset-x-0 mx-auto aspect-square rounded-[46%_54%_50%_50%/52%_46%_54%_48%] transition-colors motion-safe:animate-stamp",
-            isFreeSpace ? "top-[11%] w-[78%]" : "top-[3%] w-[70%]",
+            isFreeSpace ? "inset-y-0 my-auto w-[78%]" : "top-[3%] w-[70%]",
             isWinning ? "bg-dauber/55" : "bg-dauber/25",
           )}
           style={{ rotate: `${(index * 47) % 360}deg` }}
@@ -45,7 +45,9 @@ export function BingoCell({
 
       <p
         className={cn(
-          "relative flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden text-center text-[10px] leading-tight font-medium text-balance wrap-anywhere sm:text-xs md:text-sm",
+          "relative flex w-full flex-1 items-center justify-center text-center text-[10px] leading-tight font-medium text-balance wrap-anywhere sm:text-xs md:text-sm",
+          // Full screen on a phone has height to spare, so the text can be bigger.
+          "max-sm:group-data-full-screen/board:text-[11px]",
           isFreeSpace && "flex-col gap-0.5 font-semibold",
         )}
       >

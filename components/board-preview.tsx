@@ -71,17 +71,17 @@ export function BoardPreview({
 
       <div
         className={cn(
-          "grid gap-px overflow-hidden rounded-xl border bg-border transition-shadow",
+          "bingo-grid overflow-hidden rounded-xl border bg-border transition-shadow",
           pending && "ring-2 ring-dauber/40",
         )}
-        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+        style={{ "--cols": cols } as React.CSSProperties}
       >
         {cells.map((promptIndex, cellIndex) => {
           if (promptIndex === null) {
             return (
               <div
                 key={cellIndex}
-                className="relative flex aspect-square flex-col items-center justify-center gap-0.5 bg-card text-[10px] font-semibold sm:text-xs"
+                className="bingo-square relative flex flex-col items-center justify-center gap-0.5 bg-card text-[10px] font-semibold sm:text-xs"
               >
                 <span
                   aria-hidden="true"
@@ -103,7 +103,7 @@ export function BoardPreview({
               disabled={pending}
               aria-label={`Edit square ${promptIndex + 1}${prompt ? `: ${prompt}` : " (empty)"}`}
               className={cn(
-                "relative flex aspect-square min-w-0 flex-col overflow-hidden bg-card p-1 text-center transition-colors outline-none hover:bg-muted focus-visible:bg-muted sm:p-1.5",
+                "bingo-square relative flex min-w-0 flex-col bg-card p-1 text-center transition-colors outline-none hover:bg-muted focus-visible:bg-muted sm:p-1.5",
                 active && "bg-dauber/10 hover:bg-dauber/10",
               )}
             >
@@ -127,7 +127,7 @@ export function BoardPreview({
               ) : (
                 <span
                   className={cn(
-                    "flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden text-[10px] leading-tight font-medium text-balance wrap-anywhere sm:text-xs",
+                    "flex w-full flex-1 items-center justify-center text-[10px] leading-tight font-medium text-balance wrap-anywhere sm:text-xs",
                     !prompt && "font-normal text-muted-foreground/60",
                   )}
                 >
