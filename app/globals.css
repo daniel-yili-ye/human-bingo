@@ -131,6 +131,23 @@
     --sidebar-ring: oklch(0.556 0 0);
 }
 
+/*
+ * A card's grid and its squares. Squares are at least as tall as they are
+ * wide, and every row grows to fit the longest prompt, so text is never cut
+ * off on narrow screens. Set --cols on the grid.
+ */
+@utility bingo-grid {
+  container-type: inline-size;
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+}
+
+@utility bingo-square {
+  min-height: calc((100cqw - (var(--cols) - 1) * 1px) / var(--cols));
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
