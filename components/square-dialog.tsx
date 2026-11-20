@@ -13,6 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { MAX_PROMPT_LENGTH } from "@/lib/board";
 
 type SquareDialogProps = {
+  /** Id for the text field, so the editor can put the cursor in it. */
+  fieldId: string;
   /** Prompt index being edited, or null when closed. */
   index: number | null;
   /** How many squares the board has, for stepping between them. */
@@ -28,6 +30,7 @@ type SquareDialogProps = {
  * no list of text fields beside it. Changes apply as they are typed.
  */
 export function SquareDialog({
+  fieldId,
   index,
   count,
   value,
@@ -53,6 +56,7 @@ export function SquareDialog({
         </DialogHeader>
 
         <Textarea
+          id={fieldId}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={(event) => {

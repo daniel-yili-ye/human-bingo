@@ -3,6 +3,7 @@
 import { cn } from "cn";
 import { Loader2Icon, SparklesIcon } from "lucide-react";
 import { useId, useState, useSyncExternalStore, useTransition } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import { createBoard, generatePrompts, updateBoard } from "@/actions/boards";
 import { BoardPreview, SquareNumber } from "@/components/board-preview";
@@ -89,6 +90,13 @@ function SizeSelect({
       </Select>
     </Field>
   );
+}
+
+/** Focuses a text field with the cursor after its last character, ready to type. */
+function focusAtEnd(field: HTMLElement | null) {
+  if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) return;
+  field.focus();
+  field.setSelectionRange(field.value.length, field.value.length);
 }
 
 const subscribe = () => () => {};
@@ -186,9 +194,18 @@ export function BoardEditor({ board, aiUsage: initialAiUsage = null }: BoardEdit
     });
   }
 
+  const dialogFieldId = `${id}-dialog-square`;
+
+  /** Puts the cursor in a square's text: its field on desktop, the dialog on phones. */
   function selectSquare(index: number) {
-    if (window.matchMedia(SIDE_BY_SIDE).matches) document.getElementById(squareId(index))?.focus();
-    else setDialogIndex(index);
+    if (window.matchMedia(SIDE_BY_SIDE).matches) {
+      focusAtEnd(document.getElementById(squareId(index)));
+      return;
+    }
+    // Rendered at once so the focus below is still part of the tap: phones only
+    // bring up the keyboard for a focus that comes straight from a touch.
+    flushSync(() => setDialogIndex(index));
+    focusAtEnd(document.getElementById(dialogFieldId));
   }
 
   function save(event: React.FormEvent) {
@@ -381,6 +398,7 @@ export function BoardEditor({ board, aiUsage: initialAiUsage = null }: BoardEdit
       </FieldGroup>
 
       <SquareDialog
+        fieldId={dialogFieldId}
         // Resizing the board can leave the open square off the end of it.
         index={dialogIndex !== null && dialogIndex < promptCount ? dialogIndex : null}
         count={promptCount}
@@ -388,7 +406,7 @@ export function BoardEditor({ board, aiUsage: initialAiUsage = null }: BoardEdit
         onChange={(value) => {
           if (dialogIndex !== null) setPrompts((current) => current.with(dialogIndex, value));
         }}
-        onNavigate={setDialogIndex}
+        onNavigate={selectSquare}
         onClose={() => setDialogIndex(null)}
       />
 
