@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "cn";
-import { Loader2Icon, RefreshCwIcon, SparklesIcon } from "lucide-react";
+import { Loader2Icon, SparklesIcon } from "lucide-react";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { createBoard, generatePrompts, updateBoard } from "@/actions/boards";
@@ -43,8 +43,6 @@ import {
 } from "@/lib/board";
 
 const MAX_PROMPTS = MAX_SIZE * MAX_SIZE;
-/** Theme for a single AI square when there is no description or title to go on. */
-const FALLBACK_TOPIC = "A mixed group of people getting to know each other";
 /** From this width the squares have text fields beside the board (Tailwind's lg). */
 const SIDE_BY_SIDE = "(min-width: 64rem)";
 
@@ -100,16 +98,15 @@ export function BoardEditor({ board }: { board?: Board }) {
   const [error, setError] = useState<string | null>(null);
   const [isSaving, startSaving] = useTransition();
   const [isGenerating, startGenerating] = useTransition();
-  // Square open in the dialog, and square being rewritten by the AI.
+  // Square open in the dialog.
   const [dialogIndex, setDialogIndex] = useState<number | null>(null);
-  const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
 
   const freeSpaceAllowed = canHaveFreeSpace(rows, cols);
   const grid = { rows, cols, freeSpace: wantsFreeSpace && freeSpaceAllowed };
   const promptCount = getPromptCount(grid);
   const visiblePrompts = prompts.slice(0, promptCount);
   const filledCount = visiblePrompts.filter((prompt) => prompt.trim()).length;
-  const busy = isSaving || isGenerating || regeneratingIndex !== null;
+  const busy = isSaving || isGenerating;
 
   // Grid cells in row-major order, each pointing at its prompt (null = free space).
   const freeSpaceIndex = getFreeSpaceIndex(grid);
@@ -132,27 +129,6 @@ export function BoardEditor({ board }: { board?: Board }) {
         description: "Edit any of them before saving.",
       });
     });
-  }
-
-  async function regenerate(index: number) {
-    // The description if there is one, otherwise the title says what the board is about.
-    const theme =
-      [topic, title].map((text) => text.trim()).find((text) => text.length >= 3) ?? FALLBACK_TOPIC;
-
-    setRegeneratingIndex(index);
-    try {
-      const result = await generatePrompts({
-        topic: theme,
-        count: 1,
-        avoid: visiblePrompts.filter((prompt) => prompt.trim()),
-      });
-      if (result.ok) setPrompts((current) => current.with(index, result.data[0]));
-      else toast.error(result.error);
-    } catch {
-      toast.error("Could not generate a square. Please try again.");
-    } finally {
-      setRegeneratingIndex(null);
-    }
   }
 
   function selectSquare(index: number) {
@@ -301,7 +277,6 @@ export function BoardEditor({ board }: { board?: Board }) {
             activeIndex={activeIndex ?? dialogIndex}
             onSelect={selectSquare}
             pending={isGenerating}
-            pendingIndex={regeneratingIndex}
           />
         </div>
       </div>
@@ -309,46 +284,28 @@ export function BoardEditor({ board }: { board?: Board }) {
       <FieldGroup className="min-w-0 lg:col-start-1">
         {/* Desktop only: on phones a square is edited by tapping it on the board. */}
         <ol className="grid gap-2 max-lg:hidden" aria-label="Squares" aria-busy={isGenerating}>
-          {visiblePrompts.map((prompt, index) => {
-            const writing = isGenerating || index === regeneratingIndex;
-            return (
-              <li key={index} className="flex items-center gap-2">
-                <SquareNumber number={index + 1} active={index === activeIndex} />
-                <Input
-                  id={squareId(index)}
-                  value={prompt}
-                  onFocus={() => setActiveIndex(index)}
-                  onBlur={() => setActiveIndex((current) => (current === index ? null : current))}
-                  onChange={(event) =>
-                    setPrompts((current) => current.with(index, event.target.value))
-                  }
-                  placeholder={writing ? "Writing…" : "Has run a marathon"}
-                  // Fields lock and pulse one after another while a draft is on its way.
-                  disabled={writing}
-                  className={cn(writing && "animate-pulse motion-reduce:animate-none")}
-                  style={isGenerating ? { animationDelay: `${index * 80}ms` } : undefined}
-                  aria-label={`Square ${index + 1}`}
-                  maxLength={MAX_PROMPT_LENGTH}
-                  autoComplete="off"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => regenerate(index)}
-                  disabled={busy}
-                  aria-label={`Regenerate square ${index + 1} with AI`}
-                  title="Regenerate with AI"
-                >
-                  <RefreshCwIcon
-                    className={cn(
-                      index === regeneratingIndex && "animate-spin motion-reduce:animate-none",
-                    )}
-                  />
-                </Button>
-              </li>
-            );
-          })}
+          {visiblePrompts.map((prompt, index) => (
+            <li key={index} className="flex items-center gap-2">
+              <SquareNumber number={index + 1} active={index === activeIndex} />
+              <Input
+                id={squareId(index)}
+                value={prompt}
+                onFocus={() => setActiveIndex(index)}
+                onBlur={() => setActiveIndex((current) => (current === index ? null : current))}
+                onChange={(event) =>
+                  setPrompts((current) => current.with(index, event.target.value))
+                }
+                placeholder={isGenerating ? "Writing…" : "Has run a marathon"}
+                // Fields lock and pulse one after another while a draft is on its way.
+                disabled={isGenerating}
+                className={cn(isGenerating && "animate-pulse motion-reduce:animate-none")}
+                style={isGenerating ? { animationDelay: `${index * 80}ms` } : undefined}
+                aria-label={`Square ${index + 1}`}
+                maxLength={MAX_PROMPT_LENGTH}
+                autoComplete="off"
+              />
+            </li>
+          ))}
         </ol>
 
         {error && <FieldError>{error}</FieldError>}
@@ -372,11 +329,6 @@ export function BoardEditor({ board }: { board?: Board }) {
         onChange={(value) => {
           if (dialogIndex !== null) setPrompts((current) => current.with(dialogIndex, value));
         }}
-        onRegenerate={() => {
-          if (dialogIndex !== null) regenerate(dialogIndex);
-        }}
-        regenerating={dialogIndex !== null && dialogIndex === regeneratingIndex}
-        disabled={busy}
         onNavigate={setDialogIndex}
         onClose={() => setDialogIndex(null)}
       />

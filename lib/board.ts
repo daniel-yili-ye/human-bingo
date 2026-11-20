@@ -163,11 +163,6 @@ export const generateInputSchema = z.object({
     .int()
     .min(1)
     .max(MAX_SIZE * MAX_SIZE),
-  /** Squares already on the card, so new ones do not repeat them. */
-  avoid: z
-    .array(singleLine.pipe(z.string().max(MAX_PROMPT_LENGTH)))
-    .max(MAX_SIZE * MAX_SIZE)
-    .default([]),
 });
 
 /** First human-readable message from a failed parse. */

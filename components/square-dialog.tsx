@@ -1,7 +1,6 @@
 "use client";
 
-import { cn } from "cn";
-import { ChevronLeftIcon, ChevronRightIcon, Loader2Icon, SparklesIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,10 +19,6 @@ type SquareDialogProps = {
   count: number;
   value: string;
   onChange: (value: string) => void;
-  onRegenerate: () => void;
-  regenerating: boolean;
-  /** Blocks the AI button while something else is in flight. */
-  disabled?: boolean;
   onNavigate: (index: number) => void;
   onClose: () => void;
 };
@@ -37,9 +32,6 @@ export function SquareDialog({
   count,
   value,
   onChange,
-  onRegenerate,
-  regenerating,
-  disabled = false,
   onNavigate,
   onClose,
 }: SquareDialogProps) {
@@ -70,58 +62,38 @@ export function SquareDialog({
             if (isLast) onClose();
             else onNavigate(current + 1);
           }}
-          placeholder={regenerating ? "Writing…" : "Has run a marathon"}
+          placeholder="Has run a marathon"
           aria-label={`Square ${current + 1}`}
           maxLength={MAX_PROMPT_LENGTH}
           rows={2}
           enterKeyHint={isLast ? "done" : "next"}
           autoComplete="off"
-          // Read-only rather than disabled, so the keyboard stays up on phones.
-          readOnly={regenerating}
-          aria-busy={regenerating}
-          className={cn(regenerating && "animate-pulse motion-reduce:animate-none")}
         />
 
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center justify-end gap-2">
           <Button
             type="button"
             variant="outline"
-            onClick={onRegenerate}
-            disabled={disabled || regenerating}
+            size="icon"
+            aria-label="Previous square"
+            onClick={() => onNavigate(current - 1)}
+            disabled={current === 0}
           >
-            {regenerating ? (
-              <Loader2Icon data-icon="inline-start" className="animate-spin" />
-            ) : (
-              <SparklesIcon data-icon="inline-start" />
-            )}
-            {regenerating ? "Writing…" : value.trim() ? "Regenerate" : "Write with AI"}
+            <ChevronLeftIcon />
           </Button>
-
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              aria-label="Previous square"
-              onClick={() => onNavigate(current - 1)}
-              disabled={current === 0}
-            >
-              <ChevronLeftIcon />
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              aria-label="Next square"
-              onClick={() => onNavigate(current + 1)}
-              disabled={isLast}
-            >
-              <ChevronRightIcon />
-            </Button>
-            <Button type="button" onClick={onClose}>
-              Done
-            </Button>
-          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label="Next square"
+            onClick={() => onNavigate(current + 1)}
+            disabled={isLast}
+          >
+            <ChevronRightIcon />
+          </Button>
+          <Button type="button" onClick={onClose}>
+            Done
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
