@@ -2,7 +2,7 @@
 
 import { cn } from "cn";
 import { Maximize2Icon, Minimize2Icon, PartyPopperIcon, RotateCcwIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { BingoCell } from "@/components/bingo-cell";
 import {
@@ -23,6 +23,7 @@ import {
   evaluateBingo,
   getFreeSpaceIndex,
   getWinningLines,
+  type BingoLine,
   type Board,
 } from "@/lib/board";
 
@@ -33,6 +34,10 @@ async function celebrate() {
   confetti({ ...burst, angle: 60, origin: { x: 0, y: 0.9 } });
   confetti({ ...burst, angle: 120, origin: { x: 1, y: 0.9 } });
 }
+
+/** One toast for bingos, replaced each time, so it never disagrees with the count. */
+const BINGO_TOAST = "bingo";
+const lineList = new Intl.ListFormat("en", { type: "conjunction" });
 
 type BingoBoardProps = {
   board: Pick<Board, "rows" | "cols" | "freeSpace" | "prompts">;
@@ -53,22 +58,38 @@ export function BingoBoard({ board, storageKey, actions }: BingoBoardProps) {
     [names, lines, freeSpaceIndex],
   );
   const lineCount = result.completedLines.length;
+  // Lines that have had their confetti, so retyping a name does not set it off again.
+  const celebrated = useRef(new Set<BingoLine>());
 
   function handleNameChange(index: number, name: string) {
     const before = result.completedLines;
     const after = evaluateBingo(names.with(index, name), lines, freeSpaceIndex).completedLines;
     setName(index, name);
 
-    // Celebrate in direct response to the keystroke that completed a line,
+    // Announce in direct response to the keystroke that completed a line,
     // so reloading a finished card does not re-announce old bingos.
-    const newLine = after.find((line) => !before.includes(line));
-    if (newLine) {
-      void celebrate();
-      toast.success(`Bingo! You completed ${describeLine(newLine)}.`, {
-        icon: <PartyPopperIcon className="size-4" />,
-        description: "Shout it out so everyone knows!",
-      });
+    const newLines = after.filter((line) => !before.includes(line));
+    if (newLines.length === 0) {
+      // A line was undone: the toast would now show a count that is too high.
+      if (after.length < before.length) toast.dismiss(BINGO_TOAST);
+      return;
     }
+
+    if (newLines.some((line) => !celebrated.current.has(line))) void celebrate();
+    for (const line of newLines) celebrated.current.add(line);
+
+    // Same wording as the badge above the card, which counts every finished line.
+    toast.success(after.length > 1 ? `Bingo ×${after.length}!` : "Bingo!", {
+      id: BINGO_TOAST,
+      icon: <PartyPopperIcon className="size-4" />,
+      description: `You completed ${lineList.format(newLines.map(describeLine))}. Shout it out so everyone knows!`,
+    });
+  }
+
+  function handleReset() {
+    reset();
+    celebrated.current.clear();
+    toast.dismiss(BINGO_TOAST);
   }
 
   const hasProgress = names.some((name) => name !== "");
@@ -132,7 +153,7 @@ export function BingoBoard({ board, storageKey, actions }: BingoBoardProps) {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Keep playing</AlertDialogCancel>
-                <AlertDialogAction variant="destructive" onClick={reset}>
+                <AlertDialogAction variant="destructive" onClick={handleReset}>
                   Clear card
                 </AlertDialogAction>
               </AlertDialogFooter>
