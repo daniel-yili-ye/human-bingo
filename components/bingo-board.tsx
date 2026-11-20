@@ -26,6 +26,14 @@ import {
   type Board,
 } from "@/lib/board";
 
+/** A burst from each bottom corner. Skipped for people who ask for reduced motion. */
+async function celebrate() {
+  const { default: confetti } = await import("canvas-confetti");
+  const burst = { particleCount: 90, spread: 70, startVelocity: 55, disableForReducedMotion: true };
+  confetti({ ...burst, angle: 60, origin: { x: 0, y: 0.9 } });
+  confetti({ ...burst, angle: 120, origin: { x: 1, y: 0.9 } });
+}
+
 type BingoBoardProps = {
   board: Pick<Board, "rows" | "cols" | "freeSpace" | "prompts">;
   /** Identifies this version of the board for saved progress. */
@@ -55,6 +63,7 @@ export function BingoBoard({ board, storageKey, actions }: BingoBoardProps) {
     // so reloading a finished card does not re-announce old bingos.
     const newLine = after.find((line) => !before.includes(line));
     if (newLine) {
+      void celebrate();
       toast.success(`Bingo! You completed ${describeLine(newLine)}.`, {
         icon: <PartyPopperIcon className="size-4" />,
         description: "Shout it out so everyone knows!",

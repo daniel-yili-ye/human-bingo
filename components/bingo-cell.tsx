@@ -1,5 +1,8 @@
+"use client";
+
 import { cn } from "cn";
 import { StarIcon } from "lucide-react";
+import { useRef } from "react";
 
 type BingoCellProps = {
   index: number;
@@ -22,10 +25,20 @@ export function BingoCell({
   isFreeSpace,
   onNameChange,
 }: BingoCellProps) {
+  const input = useRef<HTMLInputElement>(null);
+
   return (
     <div
+      // The name line is small, so a click anywhere on the square starts typing on it.
+      onClick={(event) => {
+        const field = input.current;
+        if (!field || event.target === field) return;
+        field.focus();
+        field.setSelectionRange(field.value.length, field.value.length);
+      }}
       className={cn(
         "bingo-square relative flex min-w-0 flex-col bg-card p-1 transition-colors sm:p-2",
+        !isFreeSpace && "cursor-text",
         isWinning && "bg-dauber/10",
       )}
     >
@@ -64,6 +77,7 @@ export function BingoCell({
       {!isFreeSpace && (
         // Styled as a line to write on, like a paper card.
         <input
+          ref={input}
           type="text"
           value={name}
           onChange={(event) => onNameChange(index, event.target.value)}
