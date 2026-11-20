@@ -36,6 +36,8 @@ type BoardPreviewProps = {
   onSelect: (promptIndex: number) => void;
   /** True while the squares are being drafted, so the card shows placeholders. */
   pending?: boolean;
+  /** A single square being rewritten, shown as a placeholder on its own. */
+  pendingIndex?: number | null;
 };
 
 /** The card as players will see it, updating as the form changes. */
@@ -47,6 +49,7 @@ export function BoardPreview({
   activeIndex,
   onSelect,
   pending = false,
+  pendingIndex = null,
 }: BoardPreviewProps) {
   return (
     <section aria-label="Board preview" aria-busy={pending} className="space-y-3">
@@ -112,14 +115,18 @@ export function BoardPreview({
                 active={active}
                 className="size-4 text-[9px]"
               />
-              {pending ? (
+              {pending || promptIndex === pendingIndex ? (
                 // Placeholder lines that pulse in a diagonal wave across the card.
                 <span
                   aria-hidden="true"
                   className="flex min-h-0 w-full flex-1 animate-pulse flex-col items-center justify-center gap-1 motion-reduce:animate-none"
-                  style={{
-                    animationDelay: `${(Math.floor(cellIndex / cols) + (cellIndex % cols)) * 120}ms`,
-                  }}
+                  style={
+                    pending
+                      ? {
+                          animationDelay: `${(Math.floor(cellIndex / cols) + (cellIndex % cols)) * 120}ms`,
+                        }
+                      : undefined
+                  }
                 >
                   <span className="h-1.5 w-4/5 rounded-full bg-dauber/40" />
                   <span className="h-1.5 w-3/5 rounded-full bg-dauber/40" />
@@ -131,7 +138,7 @@ export function BoardPreview({
                     !prompt && "font-normal text-muted-foreground/60",
                   )}
                 >
-                  {prompt || "Empty"}
+                  {prompt || "Blank"}
                 </span>
               )}
               {/* The line players write a name on. */}
@@ -145,8 +152,13 @@ export function BoardPreview({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Numbers match the fields in the list and don&apos;t appear on the shared board. Select a
-        square to edit it.
+        <span className="lg:hidden">
+          Tap a square to write or regenerate it. Numbers don&apos;t appear on the shared board.
+        </span>
+        <span className="max-lg:hidden">
+          Numbers match the fields in the list and don&apos;t appear on the shared board. Select a
+          square to edit it.
+        </span>
       </p>
     </section>
   );

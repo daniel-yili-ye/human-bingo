@@ -1,12 +1,13 @@
 "use client";
 
 import { cn } from "cn";
-import { Loader2Icon, SparklesIcon } from "lucide-react";
+import { Loader2Icon, RefreshCwIcon, SparklesIcon } from "lucide-react";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { createBoard, generatePrompts, updateBoard } from "@/actions/boards";
 import { BoardPreview, SquareNumber } from "@/components/board-preview";
 import { GridGlyph } from "@/components/grid-glyph";
+import { SquareDialog } from "@/components/square-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -15,9 +16,7 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
-  FieldLegend,
   FieldSeparator,
-  FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -44,6 +43,10 @@ import {
 } from "@/lib/board";
 
 const MAX_PROMPTS = MAX_SIZE * MAX_SIZE;
+/** Theme for a single AI square when there is no description or title to go on. */
+const FALLBACK_TOPIC = "A mixed group of people getting to know each other";
+/** From this width the squares have text fields beside the board (Tailwind's lg). */
+const SIDE_BY_SIDE = "(min-width: 64rem)";
 
 /** Pads or trims to the largest possible board so resizing never loses text. */
 const toPromptList = (prompts: readonly string[] = []) =>
@@ -97,13 +100,16 @@ export function BoardEditor({ board }: { board?: Board }) {
   const [error, setError] = useState<string | null>(null);
   const [isSaving, startSaving] = useTransition();
   const [isGenerating, startGenerating] = useTransition();
+  // Square open in the dialog, and square being rewritten by the AI.
+  const [dialogIndex, setDialogIndex] = useState<number | null>(null);
+  const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
 
   const freeSpaceAllowed = canHaveFreeSpace(rows, cols);
   const grid = { rows, cols, freeSpace: wantsFreeSpace && freeSpaceAllowed };
   const promptCount = getPromptCount(grid);
   const visiblePrompts = prompts.slice(0, promptCount);
   const filledCount = visiblePrompts.filter((prompt) => prompt.trim()).length;
-  const busy = isSaving || isGenerating;
+  const busy = isSaving || isGenerating || regeneratingIndex !== null;
 
   // Grid cells in row-major order, each pointing at its prompt (null = free space).
   const freeSpaceIndex = getFreeSpaceIndex(grid);
@@ -126,6 +132,32 @@ export function BoardEditor({ board }: { board?: Board }) {
         description: "Edit any of them before saving.",
       });
     });
+  }
+
+  async function regenerate(index: number) {
+    // The description if there is one, otherwise the title says what the board is about.
+    const theme =
+      [topic, title].map((text) => text.trim()).find((text) => text.length >= 3) ?? FALLBACK_TOPIC;
+
+    setRegeneratingIndex(index);
+    try {
+      const result = await generatePrompts({
+        topic: theme,
+        count: 1,
+        avoid: visiblePrompts.filter((prompt) => prompt.trim()),
+      });
+      if (result.ok) setPrompts((current) => current.with(index, result.data[0]));
+      else toast.error(result.error);
+    } catch {
+      toast.error("Could not generate a square. Please try again.");
+    } finally {
+      setRegeneratingIndex(null);
+    }
+  }
+
+  function selectSquare(index: number) {
+    if (window.matchMedia(SIDE_BY_SIDE).matches) document.getElementById(squareId(index))?.focus();
+    else setDialogIndex(index);
   }
 
   function save(event: React.FormEvent) {
@@ -152,8 +184,10 @@ export function BoardEditor({ board }: { board?: Board }) {
   }
 
   return (
-    <form onSubmit={save} noValidate className="grid gap-x-12 gap-y-8 lg:grid-cols-2">
-      <FieldGroup>
+    // Explicit columns: an automatic one would grow to fit a long title on one
+    // line and push the page wider than the screen.
+    <form onSubmit={save} noValidate className="grid grid-cols-1 gap-x-12 gap-y-8 lg:grid-cols-2">
+      <FieldGroup className="min-w-0">
         <Field>
           <FieldLabel htmlFor={`${id}-title`}>Title</FieldLabel>
           <Input
@@ -196,79 +230,88 @@ export function BoardEditor({ board }: { board?: Board }) {
         </Field>
       </FieldGroup>
 
-      {/* Sits between settings and squares on phones; pinned alongside on desktop. */}
-      <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
+      {/* Above the board on phones, so a draft lands on the card just below it. */}
+      <FieldGroup className="min-w-0 lg:col-start-1">
+        <FieldSeparator className="max-lg:hidden" />
+
+        <div className="space-y-1">
+          <h2 className="font-medium">Squares</h2>
+          <FieldDescription>
+            Something a person in the room could be or have done. One per square, or leave some
+            blank.
+          </FieldDescription>
+        </div>
+
+        <div
+          className={cn(
+            "space-y-2 rounded-lg border bg-muted/50 p-3 transition-colors",
+            isGenerating && "border-dauber/50 bg-dauber/5",
+          )}
+        >
+          <FieldLabel htmlFor={`${id}-topic`}>Draft them with AI</FieldLabel>
+          <Textarea
+            id={`${id}-topic`}
+            value={topic}
+            onChange={(event) => setTopic(event.target.value)}
+            placeholder="Welcome night for new engineering interns who love board games"
+            maxLength={MAX_TOPIC_LENGTH}
+            rows={2}
+            className="bg-background"
+            disabled={isGenerating}
+          />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p
+              role="status"
+              className={cn(
+                "text-xs text-muted-foreground",
+                isGenerating && "font-medium text-dauber",
+              )}
+            >
+              {isGenerating
+                ? `Writing ${promptCount} squares. This takes a few seconds.`
+                : filledCount > 0
+                  ? "Replaces the squares on the board."
+                  : "Describe your group or event. You can edit the results."}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={generate}
+              disabled={busy || topic.trim().length < 3}
+            >
+              {isGenerating ? (
+                <Loader2Icon data-icon="inline-start" className="animate-spin" />
+              ) : (
+                <SparklesIcon data-icon="inline-start" />
+              )}
+              {isGenerating ? "Drafting…" : `Draft ${promptCount} squares`}
+            </Button>
+          </div>
+        </div>
+      </FieldGroup>
+
+      {/* Under the AI draft on phones; pinned alongside the form on desktop. */}
+      <div className="min-w-0 lg:col-start-2 lg:row-span-3 lg:row-start-1">
         <div className="lg:sticky lg:top-20">
           <BoardPreview
             title={title}
             cols={cols}
             cells={cells}
             prompts={visiblePrompts}
-            activeIndex={activeIndex}
-            onSelect={(index) => document.getElementById(squareId(index))?.focus()}
+            activeIndex={activeIndex ?? dialogIndex}
+            onSelect={selectSquare}
             pending={isGenerating}
+            pendingIndex={regeneratingIndex}
           />
         </div>
       </div>
 
-      <FieldGroup className="lg:col-start-1">
-        <FieldSeparator className="max-lg:hidden" />
-
-        <FieldSet>
-          <FieldLegend>Squares</FieldLegend>
-          <FieldDescription>
-            Something a person in the room could be or have done. One per square.
-          </FieldDescription>
-
-          <div
-            className={cn(
-              "space-y-2 rounded-lg border bg-muted/50 p-3 transition-colors",
-              isGenerating && "border-dauber/50 bg-dauber/5",
-            )}
-          >
-            <FieldLabel htmlFor={`${id}-topic`}>Draft them with AI</FieldLabel>
-            <Textarea
-              id={`${id}-topic`}
-              value={topic}
-              onChange={(event) => setTopic(event.target.value)}
-              placeholder="Welcome night for new engineering interns who love board games"
-              maxLength={MAX_TOPIC_LENGTH}
-              rows={2}
-              className="bg-background"
-              disabled={isGenerating}
-            />
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p
-                role="status"
-                className={cn(
-                  "text-xs text-muted-foreground",
-                  isGenerating && "font-medium text-dauber",
-                )}
-              >
-                {isGenerating
-                  ? `Writing ${promptCount} squares. This takes a few seconds.`
-                  : filledCount > 0
-                    ? "Replaces the squares below."
-                    : "Describe your group or event. You can edit the results."}
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={generate}
-                disabled={busy || topic.trim().length < 3}
-              >
-                {isGenerating ? (
-                  <Loader2Icon data-icon="inline-start" className="animate-spin" />
-                ) : (
-                  <SparklesIcon data-icon="inline-start" />
-                )}
-                {isGenerating ? "Drafting…" : `Draft ${promptCount} squares`}
-              </Button>
-            </div>
-          </div>
-
-          <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1" aria-busy={isGenerating}>
-            {visiblePrompts.map((prompt, index) => (
+      <FieldGroup className="min-w-0 lg:col-start-1">
+        {/* Desktop only: on phones a square is edited by tapping it on the board. */}
+        <ol className="grid gap-2 max-lg:hidden" aria-label="Squares" aria-busy={isGenerating}>
+          {visiblePrompts.map((prompt, index) => {
+            const writing = isGenerating || index === regeneratingIndex;
+            return (
               <li key={index} className="flex items-center gap-2">
                 <SquareNumber number={index + 1} active={index === activeIndex} />
                 <Input
@@ -279,19 +322,34 @@ export function BoardEditor({ board }: { board?: Board }) {
                   onChange={(event) =>
                     setPrompts((current) => current.with(index, event.target.value))
                   }
-                  placeholder={isGenerating ? "Writing…" : "Has run a marathon"}
+                  placeholder={writing ? "Writing…" : "Has run a marathon"}
                   // Fields lock and pulse one after another while a draft is on its way.
-                  disabled={isGenerating}
-                  className={cn(isGenerating && "animate-pulse motion-reduce:animate-none")}
+                  disabled={writing}
+                  className={cn(writing && "animate-pulse motion-reduce:animate-none")}
                   style={isGenerating ? { animationDelay: `${index * 80}ms` } : undefined}
                   aria-label={`Square ${index + 1}`}
                   maxLength={MAX_PROMPT_LENGTH}
                   autoComplete="off"
                 />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => regenerate(index)}
+                  disabled={busy}
+                  aria-label={`Regenerate square ${index + 1} with AI`}
+                  title="Regenerate with AI"
+                >
+                  <RefreshCwIcon
+                    className={cn(
+                      index === regeneratingIndex && "animate-spin motion-reduce:animate-none",
+                    )}
+                  />
+                </Button>
               </li>
-            ))}
-          </ol>
-        </FieldSet>
+            );
+          })}
+        </ol>
 
         {error && <FieldError>{error}</FieldError>}
 
@@ -305,6 +363,23 @@ export function BoardEditor({ board }: { board?: Board }) {
           </p>
         </div>
       </FieldGroup>
+
+      <SquareDialog
+        // Resizing the board can leave the open square off the end of it.
+        index={dialogIndex !== null && dialogIndex < promptCount ? dialogIndex : null}
+        count={promptCount}
+        value={dialogIndex === null ? "" : (visiblePrompts[dialogIndex] ?? "")}
+        onChange={(value) => {
+          if (dialogIndex !== null) setPrompts((current) => current.with(dialogIndex, value));
+        }}
+        onRegenerate={() => {
+          if (dialogIndex !== null) regenerate(dialogIndex);
+        }}
+        regenerating={dialogIndex !== null && dialogIndex === regeneratingIndex}
+        disabled={busy}
+        onNavigate={setDialogIndex}
+        onClose={() => setDialogIndex(null)}
+      />
     </form>
   );
 }

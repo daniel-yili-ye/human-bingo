@@ -117,7 +117,8 @@ export async function generatePrompts(input: unknown): Promise<ActionResult<stri
   }
 
   try {
-    const prompts = await generateBingoPrompts(parsed.data.topic, parsed.data.count);
+    const { topic, count, avoid } = parsed.data;
+    const prompts = await generateBingoPrompts(topic, count, avoid);
     return { ok: true, data: prompts };
   } catch (cause) {
     if (!(cause instanceof AiUnavailableError)) throw cause;

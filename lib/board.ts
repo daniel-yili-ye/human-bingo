@@ -115,7 +115,10 @@ const size = z.number().int().min(MIN_SIZE).max(MAX_SIZE);
 // Collapse whitespace so prompts cannot smuggle in newlines or padding.
 const singleLine = z.string().transform((value) => value.replace(/\s+/g, " ").trim());
 
-/** Validates a board submitted from the editor. Shared by client and server. */
+/**
+ * Validates a board submitted from the editor. Shared by client and server.
+ * Squares may be left blank; only the title is required.
+ */
 export const boardInputSchema = z
   .object({
     title: singleLine.pipe(
@@ -136,15 +139,6 @@ export const boardInputSchema = z
   .superRefine((board, ctx) => {
     if (board.prompts.length !== board.rows * board.cols) {
       ctx.addIssue({ code: "custom", message: "The board does not match its dimensions." });
-      return;
-    }
-    const freeSpaceIndex = getFreeSpaceIndex(board);
-    const empty = board.prompts.filter((p, i) => i !== freeSpaceIndex && !p).length;
-    if (empty > 0) {
-      ctx.addIssue({
-        code: "custom",
-        message: `Fill in every square (${empty} still empty).`,
-      });
     }
   })
   .transform((board) => {
@@ -169,6 +163,11 @@ export const generateInputSchema = z.object({
     .int()
     .min(1)
     .max(MAX_SIZE * MAX_SIZE),
+  /** Squares already on the card, so new ones do not repeat them. */
+  avoid: z
+    .array(singleLine.pipe(z.string().max(MAX_PROMPT_LENGTH)))
+    .max(MAX_SIZE * MAX_SIZE)
+    .default([]),
 });
 
 /** First human-readable message from a failed parse. */

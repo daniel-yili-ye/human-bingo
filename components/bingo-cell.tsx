@@ -68,7 +68,7 @@ export function BingoCell({
           value={name}
           onChange={(event) => onNameChange(index, event.target.value)}
           placeholder="name"
-          aria-label={`Name of someone who: ${prompt}`}
+          aria-label={prompt ? `Name of someone who: ${prompt}` : `Name for blank square ${index + 1}`}
           aria-invalid={isDuplicate}
           title={isDuplicate ? "This name is already on another square" : undefined}
           maxLength={40}
