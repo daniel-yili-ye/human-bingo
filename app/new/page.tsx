@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import Loading from "@/app/loading";
 import { BoardEditor } from "@/components/board-editor";
 import { PageContainer } from "@/components/page-container";
+import { getAiUsage } from "@/lib/ai-usage";
 import { requireUser } from "@/lib/auth";
 
 export const metadata: Metadata = { title: "New board" };
@@ -12,7 +13,7 @@ async function NewBoard() {
 
   return (
     <PageContainer wide title="New board" description="Set it up once, then share one link.">
-      <BoardEditor />
+      <BoardEditor aiUsage={await getAiUsage()} />
     </PageContainer>
   );
 }

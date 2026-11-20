@@ -2,12 +2,22 @@
 
 import { cn } from "cn";
 import { Loader2Icon, SparklesIcon } from "lucide-react";
-import { useId, useState, useTransition } from "react";
+import { useId, useState, useSyncExternalStore, useTransition } from "react";
 import { toast } from "sonner";
 import { createBoard, generatePrompts, updateBoard } from "@/actions/boards";
 import { BoardPreview, SquareNumber } from "@/components/board-preview";
 import { GridGlyph } from "@/components/grid-glyph";
 import { SquareDialog } from "@/components/square-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -28,6 +38,8 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { UnsavedChangesDialog } from "@/components/unsaved-changes-dialog";
+import type { AiUsage } from "@/lib/ai-usage";
 import {
   boardInputSchema,
   canHaveFreeSpace,
@@ -79,8 +91,44 @@ function SizeSelect({
   );
 }
 
+const subscribe = () => () => {};
+const timeFormat = new Intl.DateTimeFormat("en", { timeStyle: "short" });
+
+/** How many AI drafts are left this hour, and when the next one frees up. */
+function AiUsageNote({ usage }: { usage: AiUsage }) {
+  const left = Math.max(0, usage.limit - usage.used);
+  // The server cannot know the viewer's time zone, so the time is added in the browser.
+  const nextFreeAt = useSyncExternalStore(
+    subscribe,
+    () => (usage.nextFreeAt ? timeFormat.format(new Date(usage.nextFreeAt)) : null),
+    () => null,
+  );
+
+  return (
+    <p
+      className={cn(
+        "text-xs text-muted-foreground tabular-nums",
+        left === 0 && "font-medium text-foreground",
+      )}
+    >
+      {left > 0
+        ? `${left} of ${usage.limit} drafts left this hour`
+        : nextFreeAt
+          ? `No drafts left. Next one at ${nextFreeAt}`
+          : "No drafts left this hour"}
+    </p>
+  );
+}
+
+type BoardEditorProps = {
+  /** Omitted for the create form. */
+  board?: Board;
+  /** The user's AI usage when the page loaded, or null when unknown. */
+  aiUsage?: AiUsage | null;
+};
+
 /** Create form when `board` is omitted, edit form otherwise. */
-export function BoardEditor({ board }: { board?: Board }) {
+export function BoardEditor({ board, aiUsage: initialAiUsage = null }: BoardEditorProps) {
   const id = useId();
   const [title, setTitle] = useState(board?.title ?? "");
   const [rows, setRows] = useState(board?.rows ?? 5);
@@ -100,6 +148,12 @@ export function BoardEditor({ board }: { board?: Board }) {
   const [isGenerating, startGenerating] = useTransition();
   // Square open in the dialog.
   const [dialogIndex, setDialogIndex] = useState<number | null>(null);
+  const [confirmingDraft, setConfirmingDraft] = useState(false);
+  const [aiUsage, setAiUsage] = useState(initialAiUsage);
+
+  // Compared with how the form started, to warn before unsaved work is lost.
+  const snapshot = JSON.stringify([title, rows, cols, wantsFreeSpace, prompts]);
+  const [savedSnapshot] = useState(snapshot);
 
   const freeSpaceAllowed = canHaveFreeSpace(rows, cols);
   const grid = { rows, cols, freeSpace: wantsFreeSpace && freeSpaceAllowed };
@@ -119,6 +173,7 @@ export function BoardEditor({ board }: { board?: Board }) {
   function generate() {
     startGenerating(async () => {
       const result = await generatePrompts({ topic, count: promptCount });
+      if (result.usage) setAiUsage(result.usage);
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -224,7 +279,10 @@ export function BoardEditor({ board }: { board?: Board }) {
             isGenerating && "border-dauber/50 bg-dauber/5",
           )}
         >
-          <FieldLabel htmlFor={`${id}-topic`}>Draft them with AI</FieldLabel>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <FieldLabel htmlFor={`${id}-topic`}>Draft them with AI</FieldLabel>
+            {aiUsage && <AiUsageNote usage={aiUsage} />}
+          </div>
           <Textarea
             id={`${id}-topic`}
             value={topic}
@@ -252,7 +310,8 @@ export function BoardEditor({ board }: { board?: Board }) {
             <Button
               type="button"
               variant="outline"
-              onClick={generate}
+              // Squares with text get a warning first, since a draft overwrites them.
+              onClick={() => (filledCount > 0 ? setConfirmingDraft(true) : generate())}
               disabled={busy || topic.trim().length < 3}
             >
               {isGenerating ? (
@@ -332,6 +391,26 @@ export function BoardEditor({ board }: { board?: Board }) {
         onNavigate={setDialogIndex}
         onClose={() => setDialogIndex(null)}
       />
+
+      <AlertDialog open={confirmingDraft} onOpenChange={setConfirmingDraft}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace your squares?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {filledCount === 1
+                ? "1 square already has text."
+                : `${filledCount} squares already have text.`}{" "}
+              A new draft overwrites them.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep them</AlertDialogCancel>
+            <AlertDialogAction onClick={generate}>Draft new squares</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <UnsavedChangesDialog when={snapshot !== savedSnapshot} />
     </form>
   );
 }

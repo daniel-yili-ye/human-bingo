@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import Loading from "@/app/loading";
 import { BoardEditor } from "@/components/board-editor";
 import { PageContainer } from "@/components/page-container";
+import { getAiUsage } from "@/lib/ai-usage";
 import { requireUser } from "@/lib/auth";
 import { getOwnBoard } from "@/lib/boards";
 
@@ -15,12 +16,12 @@ async function EditBoard({ params }: Props) {
   const { slug } = await params;
   await requireUser(`/boards/${slug}/edit`);
 
-  const board = await getOwnBoard(slug);
+  const [board, aiUsage] = await Promise.all([getOwnBoard(slug), getAiUsage()]);
   if (!board) notFound();
 
   return (
     <PageContainer wide title="Edit board" description={board.title}>
-      <BoardEditor board={board} />
+      <BoardEditor board={board} aiUsage={aiUsage} />
     </PageContainer>
   );
 }

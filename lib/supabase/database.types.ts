@@ -63,6 +63,14 @@ export type Database = {
         Args: Record<never, never>;
         Returns: boolean;
       };
+      get_ai_usage: {
+        Args: Record<never, never>;
+        Returns: {
+          used: number;
+          hourly_limit: number;
+          next_free_at: string | null;
+        }[];
+      };
     };
     Enums: Record<never, never>;
     CompositeTypes: Record<never, never>;

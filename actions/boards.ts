@@ -4,6 +4,7 @@ import { nanoid } from "nanoid";
 import { refresh, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { AiUnavailableError, generateBingoPrompts } from "@/lib/ai";
+import { getAiUsage, type AiUsage } from "@/lib/ai-usage";
 import { getUser } from "@/lib/auth";
 import {
   boardInputSchema,
@@ -99,31 +100,40 @@ export async function deleteBoard(slug: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-export async function generatePrompts(input: unknown): Promise<ActionResult<string[]>> {
+/** A draft, plus the caller's AI usage afterwards when it could be read. */
+export type GenerateResult = ActionResult<string[]> & { usage: AiUsage | null };
+
+export async function generatePrompts(input: unknown): Promise<GenerateResult> {
   const user = await getUser();
-  if (!user) return SIGNED_OUT;
+  if (!user) return { ...SIGNED_OUT, usage: null };
 
   const parsed = generateInputSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error), usage: null };
 
   const supabase = await createClient();
   const { data: allowed, error } = await supabase.rpc("consume_ai_generation");
   if (error) {
     console.error("consume_ai_generation failed", error);
-    return { ok: false, error: "Could not generate squares. Please try again." };
+    return { ok: false, error: "Could not generate squares. Please try again.", usage: null };
   }
+  // A failed attempt still counts, so every outcome from here reports usage.
+  const usage = await getAiUsage();
   if (!allowed) {
-    return { ok: false, error: "You have hit the hourly AI limit. Try again a little later." };
+    return {
+      ok: false,
+      error: "You have hit the hourly AI limit. Try again a little later.",
+      usage,
+    };
   }
 
   try {
     const prompts = await generateBingoPrompts(parsed.data.topic, parsed.data.count);
-    return { ok: true, data: prompts };
+    return { ok: true, data: prompts, usage };
   } catch (cause) {
     if (!(cause instanceof AiUnavailableError)) throw cause;
     // Log the underlying error too: the wrapper alone hides whether this was
     // a timeout, a quota limit or a rejected model.
     console.error("generatePrompts failed:", cause.message, "-", String(cause.cause));
-    return { ok: false, error: "The AI is busy right now. Try again in a moment." };
+    return { ok: false, error: "The AI is busy right now. Try again in a moment.", usage };
   }
 }
