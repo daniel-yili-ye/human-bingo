@@ -131,7 +131,7 @@ export function BoardPreview({
                     !prompt && "font-normal text-muted-foreground/60",
                   )}
                 >
-                  {prompt || "Empty"}
+                  {prompt || "Blank"}
                 </span>
               )}
               {/* The line players write a name on. */}
@@ -145,8 +145,13 @@ export function BoardPreview({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Numbers match the fields in the list and don&apos;t appear on the shared board. Select a
-        square to edit it.
+        <span className="lg:hidden">
+          Tap a square to edit it. Numbers don&apos;t appear on the shared board.
+        </span>
+        <span className="max-lg:hidden">
+          Numbers match the fields in the list and don&apos;t appear on the shared board. Select a
+          square to edit it.
+        </span>
       </p>
     </section>
   );

@@ -2,11 +2,23 @@
 
 import { cn } from "cn";
 import { Loader2Icon, SparklesIcon } from "lucide-react";
-import { useId, useState, useTransition } from "react";
+import { useId, useState, useSyncExternalStore, useTransition } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import { createBoard, generatePrompts, updateBoard } from "@/actions/boards";
 import { BoardPreview, SquareNumber } from "@/components/board-preview";
 import { GridGlyph } from "@/components/grid-glyph";
+import { SquareDialog } from "@/components/square-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -15,9 +27,7 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
-  FieldLegend,
   FieldSeparator,
-  FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,6 +39,8 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { UnsavedChangesDialog } from "@/components/unsaved-changes-dialog";
+import type { AiUsage } from "@/lib/ai-usage";
 import {
   boardInputSchema,
   canHaveFreeSpace,
@@ -44,6 +56,8 @@ import {
 } from "@/lib/board";
 
 const MAX_PROMPTS = MAX_SIZE * MAX_SIZE;
+/** From this width the squares have text fields beside the board (Tailwind's lg). */
+const SIDE_BY_SIDE = "(min-width: 64rem)";
 
 /** Pads or trims to the largest possible board so resizing never loses text. */
 const toPromptList = (prompts: readonly string[] = []) =>
@@ -78,8 +92,51 @@ function SizeSelect({
   );
 }
 
+/** Focuses a text field with the cursor after its last character, ready to type. */
+function focusAtEnd(field: HTMLElement | null) {
+  if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) return;
+  field.focus();
+  field.setSelectionRange(field.value.length, field.value.length);
+}
+
+const subscribe = () => () => {};
+const timeFormat = new Intl.DateTimeFormat("en", { timeStyle: "short" });
+
+/** How many AI drafts are left this hour, and when the next one frees up. */
+function AiUsageNote({ usage }: { usage: AiUsage }) {
+  const left = Math.max(0, usage.limit - usage.used);
+  // The server cannot know the viewer's time zone, so the time is added in the browser.
+  const nextFreeAt = useSyncExternalStore(
+    subscribe,
+    () => (usage.nextFreeAt ? timeFormat.format(new Date(usage.nextFreeAt)) : null),
+    () => null,
+  );
+
+  return (
+    <p
+      className={cn(
+        "text-xs text-muted-foreground tabular-nums",
+        left === 0 && "font-medium text-foreground",
+      )}
+    >
+      {left > 0
+        ? `${left} of ${usage.limit} drafts left this hour`
+        : nextFreeAt
+          ? `No drafts left. Next one at ${nextFreeAt}`
+          : "No drafts left this hour"}
+    </p>
+  );
+}
+
+type BoardEditorProps = {
+  /** Omitted for the create form. */
+  board?: Board;
+  /** The user's AI usage when the page loaded, or null when unknown. */
+  aiUsage?: AiUsage | null;
+};
+
 /** Create form when `board` is omitted, edit form otherwise. */
-export function BoardEditor({ board }: { board?: Board }) {
+export function BoardEditor({ board, aiUsage: initialAiUsage = null }: BoardEditorProps) {
   const id = useId();
   const [title, setTitle] = useState(board?.title ?? "");
   const [rows, setRows] = useState(board?.rows ?? 5);
@@ -97,6 +154,14 @@ export function BoardEditor({ board }: { board?: Board }) {
   const [error, setError] = useState<string | null>(null);
   const [isSaving, startSaving] = useTransition();
   const [isGenerating, startGenerating] = useTransition();
+  // Square open in the dialog.
+  const [dialogIndex, setDialogIndex] = useState<number | null>(null);
+  const [confirmingDraft, setConfirmingDraft] = useState(false);
+  const [aiUsage, setAiUsage] = useState(initialAiUsage);
+
+  // Compared with how the form started, to warn before unsaved work is lost.
+  const snapshot = JSON.stringify([title, rows, cols, wantsFreeSpace, prompts]);
+  const [savedSnapshot] = useState(snapshot);
 
   const freeSpaceAllowed = canHaveFreeSpace(rows, cols);
   const grid = { rows, cols, freeSpace: wantsFreeSpace && freeSpaceAllowed };
@@ -116,6 +181,7 @@ export function BoardEditor({ board }: { board?: Board }) {
   function generate() {
     startGenerating(async () => {
       const result = await generatePrompts({ topic, count: promptCount });
+      if (result.usage) setAiUsage(result.usage);
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -126,6 +192,20 @@ export function BoardEditor({ board }: { board?: Board }) {
         description: "Edit any of them before saving.",
       });
     });
+  }
+
+  const dialogFieldId = `${id}-dialog-square`;
+
+  /** Puts the cursor in a square's text: its field on desktop, the dialog on phones. */
+  function selectSquare(index: number) {
+    if (window.matchMedia(SIDE_BY_SIDE).matches) {
+      focusAtEnd(document.getElementById(squareId(index)));
+      return;
+    }
+    // Rendered at once so the focus below is still part of the tap: phones only
+    // bring up the keyboard for a focus that comes straight from a touch.
+    flushSync(() => setDialogIndex(index));
+    focusAtEnd(document.getElementById(dialogFieldId));
   }
 
   function save(event: React.FormEvent) {
@@ -152,8 +232,10 @@ export function BoardEditor({ board }: { board?: Board }) {
   }
 
   return (
-    <form onSubmit={save} noValidate className="grid gap-x-12 gap-y-8 lg:grid-cols-2">
-      <FieldGroup>
+    // Explicit columns: an automatic one would grow to fit a long title on one
+    // line and push the page wider than the screen.
+    <form onSubmit={save} noValidate className="grid grid-cols-1 gap-x-12 gap-y-8 lg:grid-cols-2">
+      <FieldGroup className="min-w-0">
         <Field>
           <FieldLabel htmlFor={`${id}-title`}>Title</FieldLabel>
           <Input
@@ -196,102 +278,111 @@ export function BoardEditor({ board }: { board?: Board }) {
         </Field>
       </FieldGroup>
 
-      {/* Sits between settings and squares on phones; pinned alongside on desktop. */}
-      <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
+      {/* Above the board on phones, so a draft lands on the card just below it. */}
+      <FieldGroup className="min-w-0 lg:col-start-1">
+        <FieldSeparator className="max-lg:hidden" />
+
+        <div className="space-y-1">
+          <h2 className="font-medium">Squares</h2>
+          <FieldDescription>
+            Something a person in the room could be or have done. One per square, or leave some
+            blank.
+          </FieldDescription>
+        </div>
+
+        <div
+          className={cn(
+            "space-y-2 rounded-lg border bg-muted/50 p-3 transition-colors",
+            isGenerating && "border-dauber/50 bg-dauber/5",
+          )}
+        >
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <FieldLabel htmlFor={`${id}-topic`}>Draft them with AI</FieldLabel>
+            {aiUsage && <AiUsageNote usage={aiUsage} />}
+          </div>
+          <Textarea
+            id={`${id}-topic`}
+            value={topic}
+            onChange={(event) => setTopic(event.target.value)}
+            placeholder="Welcome night for new engineering interns who love board games"
+            maxLength={MAX_TOPIC_LENGTH}
+            rows={2}
+            className="bg-background"
+            disabled={isGenerating}
+          />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p
+              role="status"
+              className={cn(
+                "text-xs text-muted-foreground",
+                isGenerating && "font-medium text-dauber",
+              )}
+            >
+              {isGenerating
+                ? `Writing ${promptCount} squares. This takes a few seconds.`
+                : filledCount > 0
+                  ? "Replaces the squares on the board."
+                  : "Describe your group or event. You can edit the results."}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              // Squares with text get a warning first, since a draft overwrites them.
+              onClick={() => (filledCount > 0 ? setConfirmingDraft(true) : generate())}
+              disabled={busy || topic.trim().length < 3}
+            >
+              {isGenerating ? (
+                <Loader2Icon data-icon="inline-start" className="animate-spin" />
+              ) : (
+                <SparklesIcon data-icon="inline-start" />
+              )}
+              {isGenerating ? "Drafting…" : `Draft ${promptCount} squares`}
+            </Button>
+          </div>
+        </div>
+      </FieldGroup>
+
+      {/* Under the AI draft on phones; pinned alongside the form on desktop. */}
+      <div className="min-w-0 lg:col-start-2 lg:row-span-3 lg:row-start-1">
         <div className="lg:sticky lg:top-20">
           <BoardPreview
             title={title}
             cols={cols}
             cells={cells}
             prompts={visiblePrompts}
-            activeIndex={activeIndex}
-            onSelect={(index) => document.getElementById(squareId(index))?.focus()}
+            activeIndex={activeIndex ?? dialogIndex}
+            onSelect={selectSquare}
             pending={isGenerating}
           />
         </div>
       </div>
 
-      <FieldGroup className="lg:col-start-1">
-        <FieldSeparator className="max-lg:hidden" />
-
-        <FieldSet>
-          <FieldLegend>Squares</FieldLegend>
-          <FieldDescription>
-            Something a person in the room could be or have done. One per square.
-          </FieldDescription>
-
-          <div
-            className={cn(
-              "space-y-2 rounded-lg border bg-muted/50 p-3 transition-colors",
-              isGenerating && "border-dauber/50 bg-dauber/5",
-            )}
-          >
-            <FieldLabel htmlFor={`${id}-topic`}>Draft them with AI</FieldLabel>
-            <Textarea
-              id={`${id}-topic`}
-              value={topic}
-              onChange={(event) => setTopic(event.target.value)}
-              placeholder="Welcome night for new engineering interns who love board games"
-              maxLength={MAX_TOPIC_LENGTH}
-              rows={2}
-              className="bg-background"
-              disabled={isGenerating}
-            />
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p
-                role="status"
-                className={cn(
-                  "text-xs text-muted-foreground",
-                  isGenerating && "font-medium text-dauber",
-                )}
-              >
-                {isGenerating
-                  ? `Writing ${promptCount} squares. This takes a few seconds.`
-                  : filledCount > 0
-                    ? "Replaces the squares below."
-                    : "Describe your group or event. You can edit the results."}
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={generate}
-                disabled={busy || topic.trim().length < 3}
-              >
-                {isGenerating ? (
-                  <Loader2Icon data-icon="inline-start" className="animate-spin" />
-                ) : (
-                  <SparklesIcon data-icon="inline-start" />
-                )}
-                {isGenerating ? "Drafting…" : `Draft ${promptCount} squares`}
-              </Button>
-            </div>
-          </div>
-
-          <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1" aria-busy={isGenerating}>
-            {visiblePrompts.map((prompt, index) => (
-              <li key={index} className="flex items-center gap-2">
-                <SquareNumber number={index + 1} active={index === activeIndex} />
-                <Input
-                  id={squareId(index)}
-                  value={prompt}
-                  onFocus={() => setActiveIndex(index)}
-                  onBlur={() => setActiveIndex((current) => (current === index ? null : current))}
-                  onChange={(event) =>
-                    setPrompts((current) => current.with(index, event.target.value))
-                  }
-                  placeholder={isGenerating ? "Writing…" : "Has run a marathon"}
-                  // Fields lock and pulse one after another while a draft is on its way.
-                  disabled={isGenerating}
-                  className={cn(isGenerating && "animate-pulse motion-reduce:animate-none")}
-                  style={isGenerating ? { animationDelay: `${index * 80}ms` } : undefined}
-                  aria-label={`Square ${index + 1}`}
-                  maxLength={MAX_PROMPT_LENGTH}
-                  autoComplete="off"
-                />
-              </li>
-            ))}
-          </ol>
-        </FieldSet>
+      <FieldGroup className="min-w-0 lg:col-start-1">
+        {/* Desktop only: on phones a square is edited by tapping it on the board. */}
+        <ol className="grid gap-2 max-lg:hidden" aria-label="Squares" aria-busy={isGenerating}>
+          {visiblePrompts.map((prompt, index) => (
+            <li key={index} className="flex items-center gap-2">
+              <SquareNumber number={index + 1} active={index === activeIndex} />
+              <Input
+                id={squareId(index)}
+                value={prompt}
+                onFocus={() => setActiveIndex(index)}
+                onBlur={() => setActiveIndex((current) => (current === index ? null : current))}
+                onChange={(event) =>
+                  setPrompts((current) => current.with(index, event.target.value))
+                }
+                placeholder={isGenerating ? "Writing…" : "Has run a marathon"}
+                // Fields lock and pulse one after another while a draft is on its way.
+                disabled={isGenerating}
+                className={cn(isGenerating && "animate-pulse motion-reduce:animate-none")}
+                style={isGenerating ? { animationDelay: `${index * 80}ms` } : undefined}
+                aria-label={`Square ${index + 1}`}
+                maxLength={MAX_PROMPT_LENGTH}
+                autoComplete="off"
+              />
+            </li>
+          ))}
+        </ol>
 
         {error && <FieldError>{error}</FieldError>}
 
@@ -305,6 +396,39 @@ export function BoardEditor({ board }: { board?: Board }) {
           </p>
         </div>
       </FieldGroup>
+
+      <SquareDialog
+        fieldId={dialogFieldId}
+        // Resizing the board can leave the open square off the end of it.
+        index={dialogIndex !== null && dialogIndex < promptCount ? dialogIndex : null}
+        count={promptCount}
+        value={dialogIndex === null ? "" : (visiblePrompts[dialogIndex] ?? "")}
+        onChange={(value) => {
+          if (dialogIndex !== null) setPrompts((current) => current.with(dialogIndex, value));
+        }}
+        onNavigate={selectSquare}
+        onClose={() => setDialogIndex(null)}
+      />
+
+      <AlertDialog open={confirmingDraft} onOpenChange={setConfirmingDraft}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace your squares?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {filledCount === 1
+                ? "1 square already has text."
+                : `${filledCount} squares already have text.`}{" "}
+              A new draft overwrites them.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep them</AlertDialogCancel>
+            <AlertDialogAction onClick={generate}>Draft new squares</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <UnsavedChangesDialog when={snapshot !== savedSnapshot} />
     </form>
   );
 }

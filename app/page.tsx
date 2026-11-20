@@ -24,7 +24,7 @@ const STEPS: { icon: LucideIcon; title: string; body: string }[] = [
   {
     icon: UsersIcon,
     title: "Mingle",
-    body: "Find someone who fits a square and write their name on it. Each person only counts once.",
+    body: "Find someone who fits a square and write their name on it.",
   },
   {
     icon: MegaphoneIcon,

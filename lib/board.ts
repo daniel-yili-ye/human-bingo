@@ -72,39 +72,23 @@ export function getWinningLines(rows: number, cols: number): BingoLine[] {
 }
 
 export type BingoResult = {
-  /** Cells that count towards a line (valid name, or the free space). */
+  /** Cells that count towards a line (a name, or the free space). */
   checked: boolean[];
-  /** Cells whose name repeats an earlier cell; these do not count. */
-  duplicates: Set<number>;
   completedLines: BingoLine[];
   winningCells: Set<number>;
 };
 
-/** Scores a card. Each person's name may only be used once per card. */
+/** Scores a card. The same name may appear on any number of squares. */
 export function evaluateBingo(
   names: readonly string[],
   lines: readonly BingoLine[],
   freeSpaceIndex: number,
 ): BingoResult {
-  const seen = new Set<string>();
-  const duplicates = new Set<number>();
-
-  const checked = names.map((name, index) => {
-    if (index === freeSpaceIndex) return true;
-    const key = name.trim().toLocaleLowerCase();
-    if (!key) return false;
-    if (seen.has(key)) {
-      duplicates.add(index);
-      return false;
-    }
-    seen.add(key);
-    return true;
-  });
-
+  const checked = names.map((name, index) => index === freeSpaceIndex || name.trim() !== "");
   const completedLines = lines.filter((line) => line.cells.every((cell) => checked[cell]));
   const winningCells = new Set(completedLines.flatMap((line) => line.cells));
 
-  return { checked, duplicates, completedLines, winningCells };
+  return { checked, completedLines, winningCells };
 }
 
 export function describeLine(line: BingoLine): string {
@@ -115,7 +99,10 @@ const size = z.number().int().min(MIN_SIZE).max(MAX_SIZE);
 // Collapse whitespace so prompts cannot smuggle in newlines or padding.
 const singleLine = z.string().transform((value) => value.replace(/\s+/g, " ").trim());
 
-/** Validates a board submitted from the editor. Shared by client and server. */
+/**
+ * Validates a board submitted from the editor. Shared by client and server.
+ * Squares may be left blank; only the title is required.
+ */
 export const boardInputSchema = z
   .object({
     title: singleLine.pipe(
@@ -136,15 +123,6 @@ export const boardInputSchema = z
   .superRefine((board, ctx) => {
     if (board.prompts.length !== board.rows * board.cols) {
       ctx.addIssue({ code: "custom", message: "The board does not match its dimensions." });
-      return;
-    }
-    const freeSpaceIndex = getFreeSpaceIndex(board);
-    const empty = board.prompts.filter((p, i) => i !== freeSpaceIndex && !p).length;
-    if (empty > 0) {
-      ctx.addIssue({
-        code: "custom",
-        message: `Fill in every square (${empty} still empty).`,
-      });
     }
   })
   .transform((board) => {

@@ -69,6 +69,20 @@ export async function getOwnBoard(slug: string): Promise<Board | null> {
   return data ? toBoard(data) : null;
 }
 
+/** Whether the signed-in user made this board (RLS hides everyone else's). */
+export async function ownsBoard(slug: string): Promise<boolean> {
+  if (!SLUG_PATTERN.test(slug)) return false;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("boards")
+    .select("slug")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (error) throw new Error(`Failed to check board owner: ${error.message}`);
+  return data !== null;
+}
+
 export type BoardSummary = Pick<Board, "slug" | "title" | "rows" | "cols" | "freeSpace"> & {
   createdAt: string;
 };

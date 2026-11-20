@@ -4,7 +4,7 @@ Make a custom people-bingo board, share its link, and let a room full of people 
 
 - **Create** boards from 3 × 3 to 6 × 6, written by hand or drafted by AI from a short description.
 - **Share** each board at its own unlisted URL (`/b/<slug>`). Players need no account.
-- **Play** on any phone. Progress is saved on the device; each person's name counts once.
+- **Play** on any phone. Progress is saved on the device.
 - **Manage** your boards (open, share, edit, delete) under `/boards`.
 
 ## Stack

@@ -1,12 +1,14 @@
+"use client";
+
 import { cn } from "cn";
 import { StarIcon } from "lucide-react";
+import { useRef } from "react";
 
 type BingoCellProps = {
   index: number;
   prompt: string;
   name: string;
   checked: boolean;
-  isDuplicate: boolean;
   isWinning: boolean;
   isFreeSpace: boolean;
   onNameChange: (index: number, name: string) => void;
@@ -17,15 +19,24 @@ export function BingoCell({
   prompt,
   name,
   checked,
-  isDuplicate,
   isWinning,
   isFreeSpace,
   onNameChange,
 }: BingoCellProps) {
+  const input = useRef<HTMLInputElement>(null);
+
   return (
     <div
+      // The name line is small, so a click anywhere on the square starts typing on it.
+      onClick={(event) => {
+        const field = input.current;
+        if (!field || event.target === field) return;
+        field.focus();
+        field.setSelectionRange(field.value.length, field.value.length);
+      }}
       className={cn(
         "bingo-square relative flex min-w-0 flex-col bg-card p-1 transition-colors sm:p-2",
+        !isFreeSpace && "cursor-text",
         isWinning && "bg-dauber/10",
       )}
     >
@@ -64,18 +75,17 @@ export function BingoCell({
       {!isFreeSpace && (
         // Styled as a line to write on, like a paper card.
         <input
+          ref={input}
           type="text"
           value={name}
           onChange={(event) => onNameChange(index, event.target.value)}
           placeholder="name"
-          aria-label={`Name of someone who: ${prompt}`}
-          aria-invalid={isDuplicate}
-          title={isDuplicate ? "This name is already on another square" : undefined}
+          aria-label={prompt ? `Name of someone who: ${prompt}` : `Name for blank square ${index + 1}`}
           maxLength={40}
           autoComplete="off"
           autoCapitalize="words"
           enterKeyHint="done"
-          className="relative mt-0.5 h-5 w-full min-w-0 shrink-0 rounded-none border-b border-dashed border-foreground/25 bg-transparent px-0.5 text-center text-[11px] font-medium outline-none placeholder:font-normal placeholder:text-muted-foreground/60 focus-visible:border-solid focus-visible:border-foreground aria-invalid:border-destructive aria-invalid:text-destructive sm:h-6 sm:text-xs"
+          className="relative mt-0.5 h-5 w-full min-w-0 shrink-0 rounded-none border-b border-dashed border-foreground/25 bg-transparent px-0.5 text-center text-[11px] font-medium outline-none placeholder:font-normal placeholder:text-muted-foreground/60 focus-visible:border-solid focus-visible:border-foreground sm:h-6 sm:text-xs"
         />
       )}
     </div>
