@@ -11,7 +11,7 @@ const responseSchema = z.object({
   prompts: z.array(z.string()).describe("Bingo square prompts, one per square."),
 });
 
-const SYSTEM_INSTRUCTION = `You write squares for "human bingo", an icebreaker game where players walk around and find a different person who matches each square.
+const SYSTEM_INSTRUCTION = `You write squares for "human bingo", an icebreaker game where players walk around and find a person who matches each square.
 
 Rules for every square:
 - Describes a trait, experience, or preference a real person in the group could plausibly have, phrased as a short statement such as "Has run a marathon" or "Speaks three languages".

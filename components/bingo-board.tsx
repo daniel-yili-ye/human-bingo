@@ -178,19 +178,12 @@ export function BingoBoard({ board, storageKey, actions }: BingoBoardProps) {
             prompt={prompt}
             name={names[index]}
             checked={result.checked[index]}
-            isDuplicate={result.duplicates.has(index)}
             isWinning={result.winningCells.has(index)}
             isFreeSpace={index === freeSpaceIndex}
             onNameChange={handleNameChange}
           />
         ))}
       </div>
-
-      {result.duplicates.size > 0 && (
-        <p role="alert" className="mt-2 px-1.5 text-sm text-destructive sm:px-0">
-          Each person only counts once. Squares with a repeated name aren&apos;t marked.
-        </p>
-      )}
     </section>
   );
 }

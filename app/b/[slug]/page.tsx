@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const title = board?.title ?? "Board not found";
   const description = board
-    ? `Play “${board.title}” on Human Bingo. Find a different person for every square.`
+    ? `Play “${board.title}” on Human Bingo. Find someone who fits each square.`
     : undefined;
 
   return {
@@ -56,7 +56,7 @@ async function Board({ params }: Props) {
   return (
     <PageContainer
       title={board.title}
-      description="Find someone who fits a square and write their name on it. Each person only counts once. Finish a row, column or diagonal, then shout bingo."
+      description="Find someone who fits a square and write their name on it. Finish a row, column or diagonal, then shout bingo."
       actions={
         <>
           <Suspense fallback={null}>

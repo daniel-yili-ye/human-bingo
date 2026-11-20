@@ -72,39 +72,23 @@ export function getWinningLines(rows: number, cols: number): BingoLine[] {
 }
 
 export type BingoResult = {
-  /** Cells that count towards a line (valid name, or the free space). */
+  /** Cells that count towards a line (a name, or the free space). */
   checked: boolean[];
-  /** Cells whose name repeats an earlier cell; these do not count. */
-  duplicates: Set<number>;
   completedLines: BingoLine[];
   winningCells: Set<number>;
 };
 
-/** Scores a card. Each person's name may only be used once per card. */
+/** Scores a card. The same name may appear on any number of squares. */
 export function evaluateBingo(
   names: readonly string[],
   lines: readonly BingoLine[],
   freeSpaceIndex: number,
 ): BingoResult {
-  const seen = new Set<string>();
-  const duplicates = new Set<number>();
-
-  const checked = names.map((name, index) => {
-    if (index === freeSpaceIndex) return true;
-    const key = name.trim().toLocaleLowerCase();
-    if (!key) return false;
-    if (seen.has(key)) {
-      duplicates.add(index);
-      return false;
-    }
-    seen.add(key);
-    return true;
-  });
-
+  const checked = names.map((name, index) => index === freeSpaceIndex || name.trim() !== "");
   const completedLines = lines.filter((line) => line.cells.every((cell) => checked[cell]));
   const winningCells = new Set(completedLines.flatMap((line) => line.cells));
 
-  return { checked, duplicates, completedLines, winningCells };
+  return { checked, completedLines, winningCells };
 }
 
 export function describeLine(line: BingoLine): string {

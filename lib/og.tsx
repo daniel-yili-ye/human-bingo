@@ -264,7 +264,7 @@ export function boardImage(board: Grid & Pick<Board, "title">, init?: ResponseIn
   const fontSize = length <= 22 ? 68 : length <= 44 ? 54 : 42;
   return new ImageResponse(
     <Frame
-      detail={`${board.rows} × ${board.cols} icebreaker card. Find a different person for every square.`}
+      detail={`${board.rows} × ${board.cols} icebreaker card. Find someone who fits each square.`}
       headline={
         <div style={{ display: "flex", fontSize, lineHeight: 1.12, letterSpacing: -1.5 }}>
           {board.title}
